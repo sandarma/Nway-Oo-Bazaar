@@ -1,0 +1,205 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+// generator client {
+//   provider = "prisma-client"
+//   output   = "../generated/prisma"
+// }
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  ORGANIZER
+}
+
+enum EventType {
+  FOOD_FAIR
+  RAFFLE_TICKET
+  CINEMA_TICKET
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique @db.VarChar(255)
+  name      String   @db.VarChar(255)
+  password  String   @db.VarChar(255)
+  role      UserRole @default(ORGANIZER)
+
+  createdInvitations Invitation[] @relation("InvitedBy")
+  usedInvitation     Invitation?  @relation("UsedBy")
+  organizedEvents    Event[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Invitation {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique @db.VarChar(20)
+  email     String?  @db.VarChar(255)
+  role      UserRole @default(ORGANIZER)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdBy Int
+  creator   User     @relation("InvitedBy", fields: [createdBy], references: [id])
+  usedBy    Int?   @unique
+  usedByUser User?   @relation("UsedBy", fields: [usedBy], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@map("invitations")
+}
+
+model Event {
+  id Int @id @default(autoincrement())
+
+  name String @db.VarChar(255)
+  eventType EventType @default(FOOD_FAIR)
+
+  eventInfo String? @db.Text
+  iconUrl String? @db.VarChar(500)
+  hostedBy String? @db.VarChar(255)
+  pickupInfo String? @db.Text
+  paymentInfo String? @db.Text
+  pickupLocations String? @db.VarChar(500)
+
+  eventDate DateTime
+
+  location String @db.VarChar(255)
+
+  preOrderClose DateTime?
+
+  organizerId Int?
+  organizer   User? @relation(fields: [organizerId], references: [id])
+
+  orders    Order[]
+  menuItems MenuItem[]
+
+  createdAt DateTime @default(now())
+
+  @@map("events")
+}
+
+enum MenuCategory {
+  MAIN_DISH
+  SNACK
+  DESSERT
+  DRINK
+  CINEMA_TICKET
+  RAFFLE_TICKET
+}
+
+model MenuItem {
+  id Int @id @default(autoincrement())
+
+  itemCode String
+
+  name String @db.VarChar(255)
+  chef String? @db.VarChar(255)
+
+  category MenuCategory @default(MAIN_DISH)
+
+  price Float
+
+  stockQty Int @default(0)
+
+  isSoldOut Boolean @default(false)
+
+  eventId Int
+  event   Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  orderItems OrderItem[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([eventId, itemCode])
+  @@map("menu_items")
+}
+
+model Customer {
+  id    Int    @id @default(autoincrement())
+  name  String
+  phone String
+
+  orders Order[]
+
+  createdAt DateTime @default(now())
+
+  @@index([phone])
+  @@map("customers")
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  CONFIRMED_IN_CASH
+  CONFIRMED_BANK_TRANSFER
+  PAID_IN_CASH
+  PAID_BANK_TRANSFER
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentMode {
+  IN_CASH
+  BANK_TRANSFER
+}
+
+model Order {
+  id Int @id @default(autoincrement())
+
+  orderNumber String @unique
+
+  note String? @db.Text
+
+  eventId Int
+  event   Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  customerId Int
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  status OrderStatus @default(PENDING)
+  paymentMode PaymentMode?
+
+  total Float
+
+  paymentScreenshotUrl String? @db.VarChar(500)
+  pickupLocation String? @db.VarChar(255)
+
+  items OrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id Int @id @default(autoincrement())
+
+  orderId Int
+  order   Order @relation(fields: [orderId], references: [id])
+
+  menuItemId Int
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+
+  qty Int @db.TinyInt
+
+  unitPrice Float
+  subtotal  Float
+
+  @@unique([orderId, menuItemId])
+  @@map("order_items")
+}

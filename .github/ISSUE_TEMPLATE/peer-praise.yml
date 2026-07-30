@@ -1,0 +1,25 @@
+name: "👏 Peer feedback — Praise"
+description: Praise something another team did well
+labels: ["praise"]
+body:
+  - type: input
+    id: team
+    attributes:
+      label: Team reviewed
+      placeholder: e.g. Team 5
+    validations:
+      required: true
+  - type: textarea
+    id: praise
+    attributes:
+      label: What impressed you
+      placeholder: Describe what the team did well
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Why it matters
+      placeholder: How did this improve your experience?
+    validations:
+      required: false

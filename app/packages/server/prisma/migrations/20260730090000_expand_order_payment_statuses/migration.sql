@@ -1,0 +1,12 @@
+-- AlterTable
+ALTER TABLE `orders`
+   MODIFY `status` ENUM(
+      'PENDING',
+      'CONFIRMED',
+      'CONFIRMED_IN_CASH',
+      'CONFIRMED_BANK_TRANSFER',
+      'PAID_IN_CASH',
+      'PAID_BANK_TRANSFER',
+      'COMPLETED',
+      'CANCELLED'
+   ) NOT NULL DEFAULT 'PENDING';

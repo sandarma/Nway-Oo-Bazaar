@@ -1,0 +1,10 @@
+-- AlterTable
+ALTER TABLE `events` ADD COLUMN `eventType` ENUM('FOOD_FAIR', 'RAFFLE_TICKET', 'CINEMA_TICKET') NOT NULL DEFAULT 'FOOD_FAIR',
+    ADD COLUMN `pickupLocations` VARCHAR(500) NULL;
+
+-- AlterTable
+ALTER TABLE `menu_items` ADD COLUMN `chef` VARCHAR(255) NULL;
+
+-- AlterTable
+ALTER TABLE `orders` ADD COLUMN `paymentMode` ENUM('IN_CASH', 'BANK_TRANSFER') NULL,
+    ADD COLUMN `pickupLocation` VARCHAR(255) NULL;

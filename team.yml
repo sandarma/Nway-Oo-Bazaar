@@ -1,0 +1,8 @@
+# Team manifest — managed by reconcile-team-access.mjs. Edit 'phase' only.
+team_id: T20
+phase: project
+members:
+  - github: lwinmoe51
+  - github: nyein-sat-thaw
+  - github: rolexstar27
+  - github: sandarma

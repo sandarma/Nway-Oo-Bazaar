@@ -1,0 +1,25 @@
+name: "💡 Peer feedback — Suggestion"
+description: Suggest an improvement for another team's app
+labels: ["enhancement"]
+body:
+  - type: input
+    id: team
+    attributes:
+      label: Team reviewed
+      placeholder: e.g. Team 5
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggestion
+      placeholder: Describe the improvement you'd suggest
+    validations:
+      required: true
+  - type: textarea
+    id: rationale
+    attributes:
+      label: Why this would help
+      placeholder: What problem does this solve or what value does it add?
+    validations:
+      required: false

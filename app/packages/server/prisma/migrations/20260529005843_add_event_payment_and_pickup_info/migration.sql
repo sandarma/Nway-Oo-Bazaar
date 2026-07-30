@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE `events` ADD COLUMN `paymentInfo` TEXT NULL,
+    ADD COLUMN `pickupInfo` TEXT NULL;

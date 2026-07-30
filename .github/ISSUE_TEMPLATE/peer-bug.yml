@@ -1,0 +1,42 @@
+name: "🐛 Peer feedback — Bug"
+description: Report a bug found while reviewing another team's demo
+labels: ["bug"]
+body:
+  - type: input
+    id: team
+    attributes:
+      label: Team reviewed
+      placeholder: e.g. Team 5
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. See error
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+      placeholder: What should have happened?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      placeholder: What actually happened?
+    validations:
+      required: true
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      placeholder: Drag and drop screenshots here if applicable
+    validations:
+      required: false
