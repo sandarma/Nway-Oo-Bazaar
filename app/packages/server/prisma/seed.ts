@@ -1,26 +1,21 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import { PrismaClient, UserRole } from '@prisma/client';
 import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
-async function main() {
-   const email = process.env.ADMIN_DEMO_EMAIL || process.env.ADMIN_EMAIL;
-   const password =
-      process.env.ADMIN_DEMO_PASSWORD || process.env.ADMIN_PASSWORD;
-   const name =
-      process.env.ADMIN_DEMO_NAME || process.env.ADMIN_NAME || 'Admin';
-
+async function seedAdmin(
+   email: string,
+   password: string,
+   name: string = 'Admin'
+) {
    if (!email || !password) {
-      console.error(
-         'Error: ADMIN_DEMO_EMAIL and ADMIN_DEMO_PASSWORD env vars are required.'
-      );
-      console.error(
-         'Run: ADMIN_DEMO_EMAIL="admin@example.com" ADMIN_DEMO_PASSWORD="password" npx prisma db seed'
-      );
-      process.exit(1);
+      console.error(`Skipping: email or password not provided`);
+      return;
    }
 
-   // Check if admin already exists
    const existing = await prisma.user.findUnique({
       where: { email },
    });
@@ -32,7 +27,7 @@ async function main() {
 
    const hashedPassword = await bcrypt.hash(password, 10);
 
-   const admin = await prisma.user.create({
+   await prisma.user.create({
       data: {
          email,
          name,
@@ -41,11 +36,32 @@ async function main() {
       },
    });
 
-   // console.log(`Admin user created:`);
-   // console.log(`  Email: ${admin.email}`);
-   // console.log(`  Name: ${admin.name}`);
-   // console.log(`  Role: ${admin.role}`);
-   // console.log(`  Password: ${password} (change in production!)`);
+   console.log(`Admin user created: ${email}`);
+}
+
+async function main() {
+   // Seed primary admin
+   const email = process.env.ADMIN_EMAIL;
+   const password = process.env.ADMIN_PASSWORD;
+   const name = process.env.ADMIN_NAME || 'Admin';
+
+   // Seed demo admin
+   const demoEmail = process.env.ADMIN_DEMO_EMAIL;
+   const demoPassword = process.env.ADMIN_DEMO_PASSWORD;
+   const demoName = process.env.ADMIN_DEMO_NAME || 'Admin';
+
+   if (!email && !demoEmail) {
+      console.error(
+         'Error: At least one of ADMIN_EMAIL or ADMIN_DEMO_EMAIL env vars is required.'
+      );
+      console.error(
+         'Run: ADMIN_EMAIL="admin@example.com" ADMIN_PASSWORD="password" npx prisma db seed'
+      );
+      process.exit(1);
+   }
+
+   await seedAdmin(email || '', password || '', name);
+   await seedAdmin(demoEmail || '', demoPassword || '', demoName);
 }
 
 main()
