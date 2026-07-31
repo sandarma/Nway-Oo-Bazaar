@@ -145,9 +145,33 @@ export default function OrdersPage() {
             <h1 className="text-2xl font-bold text-foreground">Orders</h1>
             <EventSelector />
             <button
-               onClick={() =>
-                  window.open(`/api/export/${eventId}/orders`, '_blank')
-               }
+               onClick={async () => {
+                  try {
+                     const res = await api.get(`/export/${eventId}/orders`, {
+                        responseType: 'blob',
+                     });
+                     const url = window.URL.createObjectURL(
+                        new Blob([res.data])
+                     );
+                     const link = document.createElement('a');
+                     link.href = url;
+                     link.setAttribute(
+                        'download',
+                        `orders-event-${eventId}.csv`
+                     );
+                     document.body.appendChild(link);
+                     link.click();
+                     link.remove();
+                     window.URL.revokeObjectURL(url);
+                  } catch {
+                     toast({
+                        title: 'Export failed',
+                        description:
+                           'Could not export orders. Please try again.',
+                        variant: 'destructive',
+                     });
+                  }
+               }}
                className="px-4 py-2 border border-border rounded-md text-foreground hover:bg-muted"
             >
                Export CSV

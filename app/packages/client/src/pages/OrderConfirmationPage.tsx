@@ -204,7 +204,7 @@ export default function OrderConfirmationPage() {
                   to={`/payment-upload?order=${order.orderNumber}`}
                   className="flex-1 text-center bg-primary text-primary-foreground px-4 py-2.5 rounded-md text-sm font-medium hover:opacity-90 transition-opacity"
                >
-                  Upload Payment
+                  Upload Payment Proof
                </Link>
             )}
          </div>

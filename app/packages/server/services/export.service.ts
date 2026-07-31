@@ -221,6 +221,64 @@ export const exportService = {
       return buildCsv(rows);
    },
 
+   async exportOrdersDetailedToCSV(eventId: number) {
+      const { orders } = await dashboardRepository.getOrdersByEventId(eventId, {
+         limit: 10000,
+      });
+
+      const event = await prisma.event.findUnique({
+         where: { id: eventId },
+         select: { name: true, eventDate: true },
+      });
+
+      const filteredOrders = orders.filter(
+         (order) => order.status !== 'CANCELLED'
+      );
+      const sortedOrders = [...filteredOrders].sort((left, right) =>
+         left.orderNumber.localeCompare(right.orderNumber)
+      );
+
+      const rows: Array<Array<string | number | null | undefined>> = [
+         ['Orders — Detailed List'],
+         ['Event', event?.name ?? '-'],
+         ['Event Date', formatDate(event?.eventDate ?? new Date())],
+         ['Export Date', formatDate(new Date())],
+         [],
+         [
+            '**Order**',
+            '**Name**',
+            '**Phone**',
+            '**Items Ordered**',
+            '**Payment Mode**',
+            '**Status**',
+            '**Amount**',
+            '**Pickup**',
+         ],
+      ];
+
+      sortedOrders.forEach((order) => {
+         const paymentLabel =
+            order.paymentMode === 'IN_CASH' ? 'Cash' : 'Bank Transfer';
+         const statusLabel = order.status.replace(/_/g, ' ');
+         const itemsList = order.items
+            .map((item) => `${item.menuItem.name} x${item.qty}`)
+            .join('; ');
+
+         rows.push([
+            order.orderNumber,
+            order.customer.name,
+            order.customer.phone,
+            itemsList,
+            paymentLabel,
+            statusLabel,
+            formatMoney(order.total),
+            order.pickupLocation || 'Event',
+         ]);
+      });
+
+      return buildCsv(rows);
+   },
+
    async exportOrdersToCSV(eventId: number) {
       return exportService.exportFoodOrdersByUserListToCSV(eventId);
    },

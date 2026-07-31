@@ -96,7 +96,25 @@ export const exportController = {
    },
 
    async exportOrders(req: Request, res: Response) {
-      return exportController.exportFoodOrdersByUserList(req, res);
+      try {
+         const eventId = Number(req.params.eventId);
+         if (isNaN(eventId)) {
+            return res.status(400).json({ error: 'Invalid event ID' });
+         }
+
+         const csv = await exportService.exportOrdersDetailedToCSV(eventId);
+
+         const eventName = await getEventName(eventId);
+         res.setHeader('Content-Type', 'text/csv');
+         res.setHeader(
+            'Content-Disposition',
+            `attachment; filename="orders-detailed-${eventName}.csv"`
+         );
+         return res.send(csv);
+      } catch (error) {
+         console.error('Failed to export orders:', error);
+         return res.status(500).json({ error: 'Internal server error' });
+      }
    },
 
    async exportMenu(req: Request, res: Response) {

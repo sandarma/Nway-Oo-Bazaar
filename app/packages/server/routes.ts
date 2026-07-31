@@ -4,7 +4,10 @@ import { chatController } from './controllers/chat.controller';
 import { eventController } from './controllers/event.controller';
 import { menuItemController } from './controllers/menuitem.controller';
 import { orderController } from './controllers/order.controller';
-import { uploadPaymentScreenshot } from './controllers/payment.controller';
+import {
+   paymentController,
+   uploadPaymentScreenshot,
+} from './controllers/payment.controller';
 
 import { authController } from './controllers/auth.controller';
 import { invitationController } from './controllers/invitation.controller';
@@ -361,5 +364,8 @@ router.patch(
 
 // POST /api/orders/:orderNumber/payment - upload payment screenshot.
 router.post('/api/orders/:orderNumber/payment', uploadPaymentScreenshot);
+
+// GET /api/s3/*key - proxy file from S3 (keeps bucket private)
+router.get('/api/s3/{*key}', paymentController.proxyS3File);
 
 export default router;

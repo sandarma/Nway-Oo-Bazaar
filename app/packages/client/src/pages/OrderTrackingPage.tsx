@@ -134,7 +134,7 @@ export default function OrderTrackingPage() {
                      to={`/payment-upload?order=${order.orderNumber}`}
                      className="block w-full text-center bg-primary text-primary-foreground py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity"
                   >
-                     Upload Payment
+                     Upload Payment Proof
                   </Link>
                )}
 

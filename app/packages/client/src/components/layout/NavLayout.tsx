@@ -71,7 +71,7 @@ export default function NavLayout() {
                         Nway Oo Bazaar
                      </span>
                      <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
-                        Community Fundraising
+                        Community Fundraising Platform
                      </span>
                   </div>
                </Link>
