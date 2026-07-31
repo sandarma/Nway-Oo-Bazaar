@@ -1,5 +1,21 @@
 import dotenv from 'dotenv';
-dotenv.config();
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Support --env flag: npx tsx prisma/seed.ts --env=uat
+const envFlag = process.argv.find((arg) => arg.startsWith('--env='));
+const envName = envFlag ? envFlag.split('=')[1] : 'local';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const envFile = envName === 'local' ? '.env' : `.env.${envName}`;
+dotenv.config({ path: path.resolve(__dirname, '..', envFile) });
+
+console.log(`Seeding with: ${envFile}`);
+console.log(
+   `DATABASE_URL: ${process.env.DATABASE_URL?.replace(/:[^:@]+@/, ':***@')}`
+);
 
 import { PrismaClient, UserRole } from '@prisma/client';
 import bcrypt from 'bcrypt';
