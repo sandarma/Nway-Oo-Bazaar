@@ -3,7 +3,7 @@ import z from 'zod';
 import { invitationService } from '../services/invitation.service';
 
 const createInvitationSchema = z.object({
-   email: z.string().email('Invalid email address').optional(),
+   email: z.string().email('Invalid email address'),
    role: z.enum(['ADMIN', 'ORGANIZER']).default('ORGANIZER'),
 });
 

@@ -10,7 +10,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const envFile = envName === 'local' ? '.env' : `.env.${envName}`;
-dotenv.config({ path: path.resolve(__dirname, '..', envFile) });
+dotenv.config({ path: path.resolve(__dirname, '..', envFile), override: true });
 
 console.log(`Seeding with: ${envFile}`);
 console.log(

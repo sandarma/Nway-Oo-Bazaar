@@ -44,9 +44,15 @@ export default function InvitationsPage() {
       setCreating(true);
       setError('');
 
+      if (!formEmail.trim()) {
+         setError('Email is required');
+         setCreating(false);
+         return;
+      }
+
       try {
          const { data } = await api.post('/invitations', {
-            email: formEmail || undefined,
+            email: formEmail,
             role: formRole,
          });
          setNewInvitation(data.invitation);
@@ -172,10 +178,11 @@ export default function InvitationsPage() {
                <form onSubmit={handleCreate} className="flex gap-4 items-end">
                   <div className="flex-1">
                      <label className="block text-sm text-muted-foreground mb-1">
-                        Email (optional — restrict to this email)
+                        Email
                      </label>
                      <input
                         type="email"
+                        required
                         value={formEmail}
                         onChange={(e) => setFormEmail(e.target.value)}
                         className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground text-sm"
