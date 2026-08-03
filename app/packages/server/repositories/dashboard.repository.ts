@@ -148,7 +148,7 @@ export const dashboardRepository = {
    async getMenuItemsByEventId(eventId: number) {
       return prisma.menuItem.findMany({
          where: { eventId },
-         orderBy: { category: 'asc' },
+         orderBy: [{ orderIndex: 'asc' }, { category: 'asc' }, { id: 'asc' }],
          include: { event: true },
       });
    },
