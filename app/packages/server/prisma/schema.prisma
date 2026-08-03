@@ -104,8 +104,6 @@ enum MenuCategory {
 model MenuItem {
   id Int @id @default(autoincrement())
 
-  itemCode String
-
   name String @db.VarChar(255)
   chef String? @db.VarChar(255)
 
@@ -117,6 +115,8 @@ model MenuItem {
 
   isSoldOut Boolean @default(false)
 
+  orderIndex Int @default(0)
+
   eventId Int
   event   Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
@@ -124,7 +124,7 @@ model MenuItem {
 
   createdAt DateTime @default(now())
 
-  @@unique([eventId, itemCode])
+  @@unique([eventId, name])
   @@map("menu_items")
 }
 

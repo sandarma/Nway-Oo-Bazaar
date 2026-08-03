@@ -4,7 +4,6 @@ import axios from 'axios';
 
 type MenuItem = {
    id: number;
-   itemCode: string;
    name: string;
    category: string;
    price: number;
@@ -185,9 +184,6 @@ export default function EventDetailPage() {
                                     <div className="min-w-0">
                                        <p className="font-medium truncate">
                                           {item.name}
-                                       </p>
-                                       <p className="text-xs text-muted-foreground mt-0.5">
-                                          {item.itemCode}
                                        </p>
                                     </div>
                                     <span className="font-semibold text-sm whitespace-nowrap">

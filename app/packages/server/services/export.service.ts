@@ -288,17 +288,8 @@ export const exportService = {
          await dashboardRepository.getMenuItemsByEventId(eventId);
 
       const rows = [
-         [
-            'Item Code',
-            'Name',
-            'Chef',
-            'Category',
-            'Price',
-            'Stock Quantity',
-            'Sold Out',
-         ],
+         ['Name', 'Chef', 'Category', 'Price', 'Stock Quantity', 'Sold Out'],
          ...menuItems.map((item) => [
-            item.itemCode,
             item.name,
             item.chef || '',
             item.category,
@@ -319,7 +310,6 @@ export const exportService = {
 
       const items = order.items.map((item) => ({
          name: item.menuItem.name,
-         itemCode: item.menuItem.itemCode,
          qty: item.qty,
          unitPrice: item.unitPrice,
          subtotal: item.subtotal,

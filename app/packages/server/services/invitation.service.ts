@@ -45,6 +45,14 @@ export const invitationService = {
       await invitationRepository.delete(id);
    },
 
+   async delete(id: number) {
+      const invitation = await invitationRepository.findById(id);
+      if (!invitation) {
+         throw new Error('Invitation not found');
+      }
+      await invitationRepository.delete(id);
+   },
+
    async checkStatus(code: string) {
       const invitation = await invitationRepository.findByCode(code);
 

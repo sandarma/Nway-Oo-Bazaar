@@ -42,7 +42,11 @@ export const eventRepository = {
       // SELECT * FROM events WHERE id = @eventId
       return prisma.event.findUnique({
          where: { id: eventId },
-         include: { menuItems: true },
+         include: {
+            menuItems: {
+               orderBy: { orderIndex: 'asc' },
+            },
+         },
       });
    },
 

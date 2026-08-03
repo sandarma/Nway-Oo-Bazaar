@@ -1,13 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import api from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, Package, AlertTriangle } from 'lucide-react';
+import {
+   Plus,
+   Edit,
+   Trash2,
+   Package,
+   AlertTriangle,
+   GripVertical,
+} from 'lucide-react';
 import EventSelector from '@/components/dashboard/EventSelector';
 
 interface MenuItem {
    id: number;
-   itemCode: string;
    name: string;
    chef: string | null;
    category: string;
@@ -15,6 +21,7 @@ interface MenuItem {
    stockQty: number;
    isSoldOut: boolean;
    eventId: number;
+   orderIndex: number;
 }
 
 const CATEGORIES = [
@@ -34,6 +41,8 @@ export default function MenuPage() {
    const [showCreateModal, setShowCreateModal] = useState(false);
    const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
    const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+   const [draggedId, setDraggedId] = useState<number | null>(null);
+   const [dragOverId, setDragOverId] = useState<number | null>(null);
 
    const eventId = searchParams.get('eventId');
 
@@ -129,6 +138,72 @@ export default function MenuPage() {
       }
    };
 
+   // Drag and drop handlers
+   const handleDragStart = useCallback((id: number) => {
+      setDraggedId(id);
+   }, []);
+
+   const handleDragOver = useCallback(
+      (e: React.DragEvent, id: number) => {
+         e.preventDefault();
+         if (draggedId === null || draggedId === id) return;
+         setDragOverId(id);
+      },
+      [draggedId]
+   );
+
+   const handleDragEnd = useCallback(async () => {
+      if (
+         draggedId === null ||
+         dragOverId === null ||
+         draggedId === dragOverId
+      ) {
+         setDraggedId(null);
+         setDragOverId(null);
+         return;
+      }
+
+      // Work with the full list (not filtered) for correct ordering
+      const allItems = [...menuItems];
+      const draggedIndex = allItems.findIndex((i) => i.id === draggedId);
+      const targetIndex = allItems.findIndex((i) => i.id === dragOverId);
+
+      if (draggedIndex === -1 || targetIndex === -1) {
+         setDraggedId(null);
+         setDragOverId(null);
+         return;
+      }
+
+      // Move the item
+      const [removed] = allItems.splice(draggedIndex, 1);
+      allItems.splice(targetIndex, 0, removed);
+
+      // Update orderIndex for all items
+      const reordered = allItems.map((item, index) => ({
+         ...item,
+         orderIndex: index,
+      }));
+
+      // Update local state immediately for instant visual feedback
+      setMenuItems(reordered);
+      setDraggedId(null);
+      setDragOverId(null);
+
+      // Save to backend
+      try {
+         await api.patch('/menu-items/reorder', {
+            items: reordered.map((item) => ({
+               id: item.id,
+               orderIndex: item.orderIndex,
+            })),
+         });
+      } catch (error) {
+         console.error('Failed to reorder items:', error);
+         toast('Failed to save order', 'error');
+         fetchMenuItems(); // Revert on error
+      }
+   }, [draggedId, dragOverId, menuItems]);
+
    const filteredItems =
       selectedCategory === 'ALL'
          ? menuItems
@@ -173,20 +248,35 @@ export default function MenuPage() {
                }`}
             >
                All
+               {menuItems.length > 0 && (
+                  <span className="ml-1.5 text-xs opacity-70">
+                     ({menuItems.length})
+                  </span>
+               )}
             </button>
-            {CATEGORIES.map((cat) => (
-               <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`px-3 py-1.5 text-sm rounded-md ${
-                     selectedCategory === cat
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                  }`}
-               >
-                  {cat.replace(/_/g, ' ')}
-               </button>
-            ))}
+            {CATEGORIES.map((cat) => {
+               const count = menuItems.filter(
+                  (item) => item.category === cat
+               ).length;
+               return (
+                  <button
+                     key={cat}
+                     onClick={() => setSelectedCategory(cat)}
+                     className={`px-3 py-1.5 text-sm rounded-md ${
+                        selectedCategory === cat
+                           ? 'bg-primary text-primary-foreground'
+                           : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                     }`}
+                  >
+                     {cat.replace(/_/g, ' ')}
+                     {count > 0 && (
+                        <span className="ml-1.5 text-xs opacity-70">
+                           ({count})
+                        </span>
+                     )}
+                  </button>
+               );
+            })}
          </div>
 
          {/* Menu Items List */}
@@ -211,14 +301,32 @@ export default function MenuPage() {
                </button>
             </div>
          ) : (
-            <div className="space-y-4">
+            <div className="space-y-2">
+               <p className="text-sm text-muted-foreground">
+                  Drag items to reorder how they appear to customers
+               </p>
                {filteredItems.map((item) => (
-                  <MenuItemCard
+                  <div
                      key={item.id}
-                     item={item}
-                     onEdit={() => setEditingItem(item)}
-                     onDelete={() => handleDelete(item.id)}
-                  />
+                     draggable
+                     onDragStart={() => handleDragStart(item.id)}
+                     onDragOver={(e) => handleDragOver(e, item.id)}
+                     onDragEnd={handleDragEnd}
+                     onDragLeave={() => setDragOverId(null)}
+                     className={`cursor-grab active:cursor-grabbing transition-all ${
+                        draggedId === item.id
+                           ? 'opacity-50 scale-95'
+                           : dragOverId === item.id
+                             ? 'border-t-2 border-primary'
+                             : ''
+                     }`}
+                  >
+                     <MenuItemCard
+                        item={item}
+                        onEdit={() => setEditingItem(item)}
+                        onDelete={() => handleDelete(item.id)}
+                     />
+                  </div>
                ))}
             </div>
          )}
@@ -267,12 +375,10 @@ function MenuItemCard({
       <div
          className={`p-4 bg-card border border-border rounded-lg ${item.isSoldOut ? 'opacity-60' : ''}`}
       >
-         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+         <div className="flex items-center gap-3">
+            <GripVertical className="w-5 h-5 text-muted-foreground flex-shrink-0" />
             <div className="flex-1">
                <div className="flex items-center gap-2">
-                  <span className="font-mono text-sm text-muted-foreground">
-                     {item.itemCode}
-                  </span>
                   <span
                      className={`px-2 py-0.5 text-xs font-medium rounded ${categoryColors[item.category as keyof typeof categoryColors] || 'bg-gray-100 text-gray-800'}`}
                   >
@@ -333,7 +439,6 @@ function MenuItemModal({
    onSubmit: (data: Partial<MenuItem>) => void;
 }) {
    const [formData, setFormData] = useState({
-      itemCode: item?.itemCode || '',
       name: item?.name || '',
       chef: item?.chef || '',
       category: item?.category || 'MAIN_DISH',
@@ -362,20 +467,6 @@ function MenuItemModal({
                </button>
             </div>
             <form onSubmit={handleSubmit} className="p-4 space-y-4">
-               <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">
-                     Item Code *
-                  </label>
-                  <input
-                     type="text"
-                     value={formData.itemCode}
-                     onChange={(e) =>
-                        setFormData({ ...formData, itemCode: e.target.value })
-                     }
-                     className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
-                     required
-                  />
-               </div>
                <div>
                   <label className="block text-sm font-medium text-foreground mb-1">
                      Name *

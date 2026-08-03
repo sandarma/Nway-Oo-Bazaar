@@ -4,7 +4,6 @@ import axios from 'axios';
 
 type MenuItem = {
    id: number;
-   itemCode: string;
    name: string;
    category: string;
    price: number;

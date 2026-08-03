@@ -86,6 +86,21 @@ export default function InvitationsPage() {
       }
    };
 
+   const handleDelete = async (id: number) => {
+      if (!confirm('Are you sure you want to delete this invitation?')) return;
+
+      try {
+         await api.delete(`/invitations/${id}/permanent`);
+         fetchInvitations();
+      } catch (err) {
+         const message =
+            err instanceof Error
+               ? err.message
+               : 'Unable to delete invitation. Please try again.';
+         setError(message);
+      }
+   };
+
    const copyLink = (code: string) => {
       const url = `${window.location.origin}/register?code=${code}`;
       navigator.clipboard.writeText(url);
@@ -284,22 +299,34 @@ export default function InvitationsPage() {
                                  {new Date(inv.expiresAt).toLocaleDateString()}
                               </td>
                               <td className="px-4 py-3 text-right">
-                                 {!inv.usedAt && (
-                                    <div className="flex gap-2 justify-end">
+                                 <div className="flex gap-2 justify-end">
+                                    {!inv.usedAt && (
+                                       <>
+                                          <button
+                                             onClick={() => copyLink(inv.code)}
+                                             className="text-sm text-primary hover:underline"
+                                          >
+                                             Copy Link
+                                          </button>
+                                          <button
+                                             onClick={() =>
+                                                handleRevoke(inv.id)
+                                             }
+                                             className="text-sm text-destructive hover:underline"
+                                          >
+                                             Revoke
+                                          </button>
+                                       </>
+                                    )}
+                                    {inv.usedAt && (
                                        <button
-                                          onClick={() => copyLink(inv.code)}
-                                          className="text-sm text-primary hover:underline"
-                                       >
-                                          Copy Link
-                                       </button>
-                                       <button
-                                          onClick={() => handleRevoke(inv.id)}
+                                          onClick={() => handleDelete(inv.id)}
                                           className="text-sm text-destructive hover:underline"
                                        >
-                                          Revoke
+                                          Delete
                                        </button>
-                                    </div>
-                                 )}
+                                    )}
+                                 </div>
                               </td>
                            </tr>
                         );

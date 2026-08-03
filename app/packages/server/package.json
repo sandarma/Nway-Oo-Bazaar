@@ -9,6 +9,11 @@
       "build": "npx prisma generate && npx tsc",
       "lint": "eslint .",
       "seed": "npx tsx prisma/seed.ts",
+      "db:push": "npx prisma db push --accept-data-loss",
+      "db:push:uat": "DATABASE_URL=$(grep DATABASE_URL .env.uat | cut -d'=' -f2-) npx prisma db push --accept-data-loss",
+      "db:push:prod": "DATABASE_URL=$(grep DATABASE_URL .env.production | cut -d'=' -f2-) npx prisma db push --accept-data-loss",
+      "db:seed:uat": "npx tsx prisma/seed.ts --env=uat",
+      "db:seed:prod": "npx tsx prisma/seed.ts --env=production",
       "prepare": "cd ../.. && husky"
    },
    "devDependencies": {

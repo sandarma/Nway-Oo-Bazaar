@@ -65,6 +65,12 @@ router.delete(
    requireRole('ADMIN'),
    invitationController.revoke
 );
+router.delete(
+   '/api/invitations/:id/permanent',
+   authenticate,
+   requireRole('ADMIN'),
+   invitationController.delete
+);
 
 router.get(
    '/api/users',
@@ -237,7 +243,6 @@ router.delete(
 // Request:
 // {
 //   "eventId": 1,
-//   "itemCode": "MOH001",
 //   "name": "Mohinga",
 //   "category": "MAIN_DISH",
 //   "price": 15,
@@ -256,14 +261,12 @@ router.post(
 //    "eventId": 1,
 //    "items": [
 //      {
-//        "itemCode": "MD-001",
 //        "name": "ကြက်သားဒံပေါက်",
 //        "category": "MAIN_DISH",
 //        "price": 20,
 //        "stockQty": 25
 //      },
 //      {
-//        "itemCode": "DR-001",
 //        "name": "Durian Bubble Tea",
 //        "category": "DRINK",
 //        "price": 10,
@@ -282,6 +285,15 @@ router.post(
 router.get(
    '/api/events/:eventId/menu-items',
    menuItemController.getAllMenuItemsByEventId
+);
+
+// PATCH /api/menu-items/reorder - reorder menu items.
+// NOTE: This MUST be before /api/menu-items/:id to avoid :id matching "reorder"
+router.patch(
+   '/api/menu-items/reorder',
+   authenticate,
+   requireRole('ADMIN', 'ORGANIZER'),
+   menuItemController.reorderMenuItems
 );
 
 // PATCH /api/menu-items/:id - update menu item details.

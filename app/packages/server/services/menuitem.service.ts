@@ -22,6 +22,10 @@ export const menuItemService = {
       return menuItemRepository.updateMenuItem(id, data);
    },
 
+   async reorderMenuItems(items: { id: number; orderIndex: number }[]) {
+      return menuItemRepository.reorderMenuItems(items);
+   },
+
    async deleteMenuItem(id: number): Promise<void> {
       await menuItemRepository.deleteMenuItem(id);
    },

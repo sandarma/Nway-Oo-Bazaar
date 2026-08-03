@@ -15,7 +15,6 @@ type MenuCategory = (typeof MenuCategory)[keyof typeof MenuCategory];
 
 const menuItemCreateRequestSchema = z.object({
    eventId: z.number(),
-   itemCode: z.string().trim().min(1, 'item code is required'),
    name: z.string().trim().min(1, 'item name is required'),
    chef: z.string().trim().optional(),
    category: z.nativeEnum(MenuCategory),
@@ -30,7 +29,6 @@ const menuItemCreateBatchRequestSchema = z.object({
    eventId: z.number(),
    items: z.array(
       z.object({
-         itemCode: z.string().trim().min(1, 'item code is required'),
          name: z.string().trim().min(1, 'item name is required'),
          chef: z.string().trim().optional(),
          category: z.nativeEnum(MenuCategory),
@@ -44,7 +42,6 @@ const menuItemCreateBatchRequestSchema = z.object({
 });
 
 const menuItemUpdateRequestSchema = z.object({
-   itemCode: z.string().trim().min(1, 'item code is required').optional(),
    name: z.string().trim().min(1, 'item name is required').optional(),
    chef: z.string().trim().optional(),
    category: z.nativeEnum(MenuCategory).optional(),
@@ -55,12 +52,20 @@ const menuItemUpdateRequestSchema = z.object({
       .nonnegative('stock quantity must be a non-negative integer')
       .optional(),
    isSoldOut: z.boolean().optional(),
+   orderIndex: z.number().int().optional(),
+});
+
+const reorderRequestSchema = z.object({
+   items: z.array(
+      z.object({
+         id: z.number(),
+         orderIndex: z.number().int(),
+      })
+   ),
 });
 
 export const menuItemController = {
    async createMenuItem(req: Request, res: Response) {
-      // logic to create a new menu item
-
       const parseResult = menuItemCreateRequestSchema.safeParse(req.body);
       if (!parseResult.success) {
          return res.status(400).json({ error: parseResult.error.format() });
@@ -69,7 +74,6 @@ export const menuItemController = {
       try {
          const {
             eventId,
-            itemCode,
             name,
             chef,
             category: categoryValue,
@@ -81,13 +85,13 @@ export const menuItemController = {
 
          const menuItem = await menuItemService.createMenuItem({
             eventId,
-            itemCode,
             name,
             chef,
             category,
             price,
             stockQty,
             isSoldOut: false,
+            orderIndex: 0,
             createdAt: new Date(),
          });
 
@@ -107,15 +111,15 @@ export const menuItemController = {
       try {
          const { eventId, items } = parseResult.data;
 
-         const menuItemsToCreate = items.map((item) => ({
+         const menuItemsToCreate = items.map((item, index) => ({
             eventId,
-            itemCode: item.itemCode,
             name: item.name,
             chef: item.chef,
             category: item.category as MenuCategory,
             price: item.price,
             stockQty: item.stockQty,
             isSoldOut: false,
+            orderIndex: index,
             createdAt: new Date(),
          }));
 
@@ -166,29 +170,44 @@ export const menuItemController = {
          }
 
          const {
-            itemCode,
             name,
             chef,
             category: categoryValue,
             price,
             stockQty,
             isSoldOut,
+            orderIndex,
          } = parseResult.data;
-         const category = categoryValue as MenuCategory;
+         const category = categoryValue as MenuCategory | undefined;
 
          const updatedItem = await menuItemService.updateMenuItem(menuItemId, {
-            itemCode,
             name,
             chef,
             category,
             price,
             stockQty,
             isSoldOut,
+            orderIndex,
          });
 
          res.json({ menuItem: updatedItem });
       } catch (error) {
          return res.status(500).json({ error: 'Failed to update menu item' });
+      }
+   },
+
+   async reorderMenuItems(req: Request, res: Response) {
+      const parseResult = reorderRequestSchema.safeParse(req.body);
+      if (!parseResult.success) {
+         return res.status(400).json({ error: parseResult.error.format() });
+      }
+
+      try {
+         const { items } = parseResult.data;
+         await menuItemService.reorderMenuItems(items);
+         res.json({ message: 'Menu items reordered successfully' });
+      } catch (error) {
+         return res.status(500).json({ error: 'Failed to reorder menu items' });
       }
    },
 

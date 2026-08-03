@@ -49,7 +49,6 @@ type ActiveEventsResponse = {
 type MenuItemDto = {
    id: number;
    name: string;
-   itemCode: string;
    price: number;
    stockQty: number;
    isSoldOut: boolean;

@@ -3,7 +3,7 @@ import { prisma } from '../prisma';
 
 export const menuItemRepository = {
    async createMenuItem(data: Omit<MenuItem, 'id'>) {
-      // INSERT INTO menu_items (itemCode, name, category, price, stockQty, eventId) VALUES (@itemCode, @name, @category, @price, @stockQty, @eventId)
+      // INSERT INTO menu_items (name, category, price, stockQty, eventId, orderIndex) VALUES (...)
       return prisma.menuItem.create({
          data,
       });
@@ -21,10 +21,11 @@ export const menuItemRepository = {
    },
 
    async getAllMenuItemsByEventId(eventId: number): Promise<MenuItem[]> {
-      // SELECT * FROM menu_items WHERE eventId = @eventId
+      // SELECT * FROM menu_items WHERE eventId = @eventId ORDER BY orderIndex ASC
       return prisma.menuItem.findMany({
          where: { eventId },
          include: { event: true },
+         orderBy: { orderIndex: 'asc' },
       });
    },
 
@@ -36,12 +37,23 @@ export const menuItemRepository = {
    },
 
    async updateMenuItem(id: number, data: Partial<Omit<MenuItem, 'id'>>) {
-      // UPDATE menu_items SET itemCode = @itemCode, name = @name, category = @category, price = @price, stockQty = @stockQty WHERE id = @menuItemId
-
+      // UPDATE menu_items SET name = @name, category = @category, price = @price, stockQty = @stockQty, orderIndex = @orderIndex WHERE id = @menuItemId
       return prisma.menuItem.update({
          where: { id },
          data,
       });
+   },
+
+   async reorderMenuItems(items: { id: number; orderIndex: number }[]) {
+      // UPDATE menu_items SET orderIndex = @orderIndex WHERE id = @id
+      return prisma.$transaction(
+         items.map((item) =>
+            prisma.menuItem.update({
+               where: { id: item.id },
+               data: { orderIndex: item.orderIndex },
+            })
+         )
+      );
    },
 
    async deleteMenuItem(id: number): Promise<void> {

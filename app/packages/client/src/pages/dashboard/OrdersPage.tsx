@@ -41,7 +41,6 @@ interface Order {
       subtotal: number;
       menuItem: {
          name: string;
-         itemCode: string;
       };
    }[];
    event: {

@@ -63,6 +63,24 @@ export const invitationController = {
       }
    },
 
+   async delete(req: Request, res: Response) {
+      try {
+         const id = Number(req.params.id);
+         if (isNaN(id)) {
+            return res.status(400).json({ error: 'Invalid invitation ID' });
+         }
+
+         await invitationService.delete(id);
+         return res.json({ message: 'Invitation deleted successfully' });
+      } catch (error) {
+         const message =
+            error instanceof Error
+               ? error.message
+               : 'Failed to delete invitation';
+         return res.status(400).json({ error: message });
+      }
+   },
+
    async checkStatus(req: Request, res: Response) {
       try {
          const code = req.params.code;
