@@ -9,6 +9,9 @@ import {
    Package,
    AlertTriangle,
    GripVertical,
+   ArrowUp,
+   ArrowDown,
+   Loader2,
 } from 'lucide-react';
 import EventSelector from '@/components/dashboard/EventSelector';
 
@@ -43,6 +46,8 @@ export default function MenuPage() {
    const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
    const [draggedId, setDraggedId] = useState<number | null>(null);
    const [dragOverId, setDragOverId] = useState<number | null>(null);
+   const [isReordering, setIsReordering] = useState(false);
+   const isReorderingRef = useRef(false);
 
    const eventId = searchParams.get('eventId');
 
@@ -140,20 +145,97 @@ export default function MenuPage() {
 
    // Drag and drop handlers
    const handleDragStart = useCallback((id: number) => {
+      if (isReorderingRef.current) return;
       setDraggedId(id);
    }, []);
 
    const handleDragOver = useCallback(
       (e: React.DragEvent, id: number) => {
          e.preventDefault();
-         if (draggedId === null || draggedId === id) return;
+         if (isReorderingRef.current || draggedId === null || draggedId === id)
+            return;
          setDragOverId(id);
       },
       [draggedId]
    );
 
+   const saveReorderedItems = useCallback(
+      async (reordered: MenuItem[]) => {
+         if (isReorderingRef.current) return;
+
+         setMenuItems(reordered);
+         isReorderingRef.current = true;
+         setIsReordering(true);
+
+         try {
+            await api.patch('/menu-items/reorder', {
+               items: reordered.map((item) => ({
+                  id: item.id,
+                  orderIndex: item.orderIndex,
+               })),
+            });
+         } catch (error) {
+            console.error('Failed to reorder items:', error);
+            toast('Failed to save order', 'error');
+            fetchMenuItems();
+         } finally {
+            isReorderingRef.current = false;
+            setIsReordering(false);
+         }
+      },
+      [fetchMenuItems, toast]
+   );
+
+   const handleMoveItem = useCallback(
+      async (itemId: number, direction: 'up' | 'down') => {
+         if (isReorderingRef.current) return;
+
+         const sourceItems =
+            selectedCategory === 'ALL'
+               ? [...menuItems]
+               : menuItems.filter((item) => item.category === selectedCategory);
+         const currentIndex = sourceItems.findIndex(
+            (item) => item.id === itemId
+         );
+         if (currentIndex === -1) return;
+
+         const targetIndex =
+            direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+         if (targetIndex < 0 || targetIndex >= sourceItems.length) return;
+
+         const reorderedSource = [...sourceItems];
+         const [movedItem] = reorderedSource.splice(currentIndex, 1);
+         reorderedSource.splice(targetIndex, 0, movedItem);
+
+         const reorderedItems =
+            selectedCategory === 'ALL'
+               ? reorderedSource
+               : (() => {
+                    let visibleIndex = 0;
+                    return menuItems.map((item) => {
+                       if (item.category !== selectedCategory) {
+                          return item;
+                       }
+
+                       const nextVisibleItem = reorderedSource[visibleIndex];
+                       visibleIndex += 1;
+                       return nextVisibleItem || item;
+                    });
+                 })();
+
+         await saveReorderedItems(
+            reorderedItems.map((item, index) => ({
+               ...item,
+               orderIndex: index,
+            }))
+         );
+      },
+      [menuItems, saveReorderedItems, selectedCategory]
+   );
+
    const handleDragEnd = useCallback(async () => {
       if (
+         isReorderingRef.current ||
          draggedId === null ||
          dragOverId === null ||
          draggedId === dragOverId
@@ -184,25 +266,10 @@ export default function MenuPage() {
          orderIndex: index,
       }));
 
-      // Update local state immediately for instant visual feedback
-      setMenuItems(reordered);
       setDraggedId(null);
       setDragOverId(null);
-
-      // Save to backend
-      try {
-         await api.patch('/menu-items/reorder', {
-            items: reordered.map((item) => ({
-               id: item.id,
-               orderIndex: item.orderIndex,
-            })),
-         });
-      } catch (error) {
-         console.error('Failed to reorder items:', error);
-         toast('Failed to save order', 'error');
-         fetchMenuItems(); // Revert on error
-      }
-   }, [draggedId, dragOverId, menuItems]);
+      await saveReorderedItems(reordered);
+   }, [draggedId, dragOverId, menuItems, saveReorderedItems]);
 
    const filteredItems =
       selectedCategory === 'ALL'
@@ -303,17 +370,24 @@ export default function MenuPage() {
          ) : (
             <div className="space-y-2">
                <p className="text-sm text-muted-foreground">
-                  Drag items to reorder how they appear to customers
+                  Drag items or use the arrows to reorder how they appear to
+                  customers
                </p>
+               {isReordering && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                     <Loader2 className="w-4 h-4 animate-spin" />
+                     Saving order...
+                  </div>
+               )}
                {filteredItems.map((item) => (
                   <div
                      key={item.id}
-                     draggable
+                     draggable={!isReordering}
                      onDragStart={() => handleDragStart(item.id)}
                      onDragOver={(e) => handleDragOver(e, item.id)}
                      onDragEnd={handleDragEnd}
                      onDragLeave={() => setDragOverId(null)}
-                     className={`cursor-grab active:cursor-grabbing transition-all ${
+                     className={`transition-all ${
                         draggedId === item.id
                            ? 'opacity-50 scale-95'
                            : dragOverId === item.id
@@ -325,6 +399,9 @@ export default function MenuPage() {
                         item={item}
                         onEdit={() => setEditingItem(item)}
                         onDelete={() => handleDelete(item.id)}
+                        onMoveUp={() => handleMoveItem(item.id, 'up')}
+                        onMoveDown={() => handleMoveItem(item.id, 'down')}
+                        disableReorder={isReordering}
                      />
                   </div>
                ))}
@@ -357,10 +434,16 @@ function MenuItemCard({
    item,
    onEdit,
    onDelete,
+   onMoveUp,
+   onMoveDown,
+   disableReorder,
 }: {
    item: MenuItem;
    onEdit: () => void;
    onDelete: () => void;
+   onMoveUp: () => void;
+   onMoveDown: () => void;
+   disableReorder: boolean;
 }) {
    const categoryColors = {
       MAIN_DISH: 'bg-blue-100 text-blue-800',
@@ -410,14 +493,34 @@ function MenuItemCard({
             </div>
             <div className="flex items-center gap-2">
                <button
+                  onClick={onMoveUp}
+                  disabled={disableReorder}
+                  className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label="Move item up"
+                  title="Move up"
+               >
+                  <ArrowUp className="w-4 h-4" />
+               </button>
+               <button
+                  onClick={onMoveDown}
+                  disabled={disableReorder}
+                  className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label="Move item down"
+                  title="Move down"
+               >
+                  <ArrowDown className="w-4 h-4" />
+               </button>
+               <button
                   onClick={onEdit}
-                  className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md"
+                  disabled={disableReorder}
+                  className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
                >
                   <Edit className="w-4 h-4" />
                </button>
                <button
                   onClick={onDelete}
-                  className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md"
+                  disabled={disableReorder}
+                  className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
                >
                   <Trash2 className="w-4 h-4" />
                </button>
