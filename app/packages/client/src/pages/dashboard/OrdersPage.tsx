@@ -10,6 +10,9 @@ import {
    ChevronLeft,
    ChevronRight,
    Image,
+   Pencil,
+   Plus,
+   Trash2,
 } from 'lucide-react';
 import EventSelector from '@/components/dashboard/EventSelector';
 import { getOrderStatusColor, getOrderStatusLabel } from '@/lib/orderStatus';
@@ -36,6 +39,7 @@ interface Order {
       phone: string;
    };
    items: {
+      menuItemId: number;
       qty: number;
       unitPrice: number;
       subtotal: number;
@@ -63,6 +67,7 @@ export default function OrdersPage() {
    const [loading, setLoading] = useState(true);
    const [pagination, setPagination] = useState<Pagination | null>(null);
    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
    const [showPaymentModal, setShowPaymentModal] = useState(false);
 
    const eventId = searchParams.get('eventId');
@@ -125,6 +130,18 @@ export default function OrdersPage() {
       }
    };
 
+   const handleOrderUpdated = (updatedOrder: Order) => {
+      setOrders((currentOrders) =>
+         currentOrders.map((order) =>
+            order.id === updatedOrder.id ? updatedOrder : order
+         )
+      );
+      setSelectedOrder((current) =>
+         current?.id === updatedOrder.id ? updatedOrder : current
+      );
+      setEditingOrder(null);
+   };
+
    const updateSearchParams = (key: string, value: string) => {
       const params = new URLSearchParams(searchParams);
       if (value) {
@@ -163,12 +180,10 @@ export default function OrdersPage() {
                      link.remove();
                      window.URL.revokeObjectURL(url);
                   } catch {
-                     toast({
-                        title: 'Export failed',
-                        description:
-                           'Could not export orders. Please try again.',
-                        variant: 'destructive',
-                     });
+                     toast(
+                        'Failed to export orders. Please try again.',
+                        'error'
+                     );
                   }
                }}
                className="px-4 py-2 border border-border rounded-md text-foreground hover:bg-muted"
@@ -229,6 +244,7 @@ export default function OrdersPage() {
                      key={order.id}
                      order={order}
                      onView={() => setSelectedOrder(order)}
+                     onEdit={() => setEditingOrder(order)}
                      onStatusUpdate={handleStatusUpdate}
                   />
                ))}
@@ -274,8 +290,17 @@ export default function OrdersPage() {
             <OrderDetailModal
                order={selectedOrder}
                onClose={() => setSelectedOrder(null)}
+               onEdit={() => setEditingOrder(selectedOrder)}
                onStatusUpdate={handleStatusUpdate}
                onViewPayment={() => setShowPaymentModal(true)}
+            />
+         )}
+
+         {editingOrder && (
+            <OrderEditModal
+               order={editingOrder}
+               onClose={() => setEditingOrder(null)}
+               onSaved={handleOrderUpdated}
             />
          )}
 
@@ -293,10 +318,12 @@ export default function OrdersPage() {
 function OrderCard({
    order,
    onView,
+   onEdit,
    onStatusUpdate,
 }: {
    order: Order;
    onView: () => void;
+   onEdit: () => void;
    onStatusUpdate: (orderId: number, status: Order['status']) => void;
 }) {
    const statusClass = getOrderStatusColor(order.status);
@@ -410,6 +437,13 @@ function OrderCard({
                   </button>
                )}
                <button
+                  onClick={onEdit}
+                  className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md"
+                  title="Edit order"
+               >
+                  <Pencil className="w-4 h-4" />
+               </button>
+               <button
                   onClick={onView}
                   className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md"
                >
@@ -424,11 +458,13 @@ function OrderCard({
 function OrderDetailModal({
    order,
    onClose,
+   onEdit,
    onStatusUpdate,
    onViewPayment,
 }: {
    order: Order;
    onClose: () => void;
+   onEdit: () => void;
    onStatusUpdate: (orderId: number, status: Order['status']) => void;
    onViewPayment: () => void;
 }) {
@@ -529,6 +565,14 @@ function OrderDetailModal({
                   <h3 className="font-medium text-foreground mb-2">
                      Update Status
                   </h3>
+                  <div className="mb-3">
+                     <button
+                        onClick={onEdit}
+                        className="px-3 py-1.5 text-sm border border-border rounded-md hover:bg-muted"
+                     >
+                        Edit Order
+                     </button>
+                  </div>
                   <div className="flex flex-wrap gap-2">
                      {(order.status === 'PENDING' ||
                         order.status === 'CONFIRMED') && (
@@ -603,6 +647,319 @@ function OrderDetailModal({
                            Complete
                         </button>
                      )}
+                  </div>
+               </div>
+            </div>
+         </div>
+      </div>
+   );
+}
+
+type MenuOption = {
+   id: number;
+   name: string;
+   chef: string | null;
+   category: string;
+   price: number;
+   stockQty: number;
+   isSoldOut: boolean;
+};
+
+function OrderEditModal({
+   order,
+   onClose,
+   onSaved,
+}: {
+   order: Order;
+   onClose: () => void;
+   onSaved: (order: Order) => void;
+}) {
+   const { toast } = useToast();
+   const [menuItems, setMenuItems] = useState<MenuOption[]>([]);
+   const [loadingMenu, setLoadingMenu] = useState(true);
+   const [saving, setSaving] = useState(false);
+   const [note, setNote] = useState(order.note || '');
+   const [items, setItems] = useState(
+      order.items.map((item) => ({
+         menuItemId: item.menuItemId,
+         name: item.menuItem.name,
+         qty: item.qty,
+         unitPrice: item.unitPrice,
+      }))
+   );
+   const [newMenuItemId, setNewMenuItemId] = useState('');
+   const [newQty, setNewQty] = useState('1');
+
+   useEffect(() => {
+      let isMounted = true;
+      void (async () => {
+         try {
+            const response = await api.get(`/dashboard/${order.event.id}/menu`);
+            if (isMounted) {
+               setMenuItems(response.data);
+            }
+         } catch (error) {
+            console.error('Failed to load menu options:', error);
+            toast('Failed to load menu options', 'error');
+         } finally {
+            if (isMounted) {
+               setLoadingMenu(false);
+            }
+         }
+      })();
+
+      return () => {
+         isMounted = false;
+      };
+   }, [order.event.id, toast]);
+
+   const selectedOption = menuItems.find(
+      (item) => item.id === Number(newMenuItemId)
+   );
+
+   const total = items.reduce(
+      (sum, item) => sum + item.unitPrice * item.qty,
+      0
+   );
+
+   const updateItemQty = (menuItemId: number, qty: number) => {
+      setItems((current) =>
+         current.map((item) =>
+            item.menuItemId === menuItemId
+               ? {
+                    ...item,
+                    qty,
+                 }
+               : item
+         )
+      );
+   };
+
+   const removeItem = (menuItemId: number) => {
+      setItems((current) => {
+         if (current.length <= 1) {
+            toast('An order must contain at least one item', 'error');
+            return current;
+         }
+         return current.filter((item) => item.menuItemId !== menuItemId);
+      });
+   };
+
+   const addItem = () => {
+      if (!selectedOption) return;
+      const qty = Number(newQty);
+      if (!Number.isInteger(qty) || qty <= 0) {
+         toast('Quantity must be at least 1', 'error');
+         return;
+      }
+
+      setItems((current) => {
+         const existing = current.find(
+            (item) => item.menuItemId === selectedOption.id
+         );
+         if (existing) {
+            return current.map((item) =>
+               item.menuItemId === selectedOption.id
+                  ? { ...item, qty: item.qty + qty }
+                  : item
+            );
+         }
+
+         return [
+            ...current,
+            {
+               menuItemId: selectedOption.id,
+               name: selectedOption.name,
+               qty,
+               unitPrice: selectedOption.price,
+            },
+         ];
+      });
+
+      setNewMenuItemId('');
+      setNewQty('1');
+   };
+
+   const handleSave = async () => {
+      if (!order.orderNumber) return;
+      setSaving(true);
+      try {
+         const payload = {
+            note: note.trim() || null,
+            items: items.map((item) => ({
+               menuItemId: item.menuItemId,
+               quantity: item.qty,
+            })),
+         };
+         const response = await api.patch(
+            `/orders/${order.orderNumber}`,
+            payload
+         );
+         onSaved(response.data);
+         toast('Order updated successfully', 'success');
+      } catch (error) {
+         console.error('Failed to update order:', error);
+         toast('Failed to update order', 'error');
+      } finally {
+         setSaving(false);
+      }
+   };
+
+   const handleCancelOrder = async () => {
+      if (
+         !confirm(
+            'Are you sure you want to cancel this order? This cannot be undone.'
+         )
+      ) {
+         return;
+      }
+
+      try {
+         const response = await api.patch(
+            `/orders/${order.orderNumber}/cancel`
+         );
+         onSaved(response.data);
+         toast('Order cancelled successfully', 'success');
+      } catch (error) {
+         console.error('Failed to cancel order:', error);
+         toast('Failed to cancel order', 'error');
+      }
+   };
+
+   return (
+      <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+         <div className="bg-card rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <div className="p-4 border-b border-border flex items-center justify-between">
+               <div>
+                  <h2 className="text-lg font-semibold text-foreground">
+                     Edit Order {order.orderNumber}
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                     Update quantities, add items, or cancel this order.
+                  </p>
+               </div>
+               <button
+                  onClick={onClose}
+                  className="p-2 hover:bg-muted rounded-md"
+               >
+                  ✕
+               </button>
+            </div>
+
+            <div className="p-4 space-y-4">
+               <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                     Note
+                  </label>
+                  <textarea
+                     value={note}
+                     onChange={(e) => setNote(e.target.value)}
+                     rows={3}
+                     className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
+                  />
+               </div>
+
+               <div className="space-y-3">
+                  <h3 className="font-medium text-foreground">Current items</h3>
+                  {items.map((item) => (
+                     <div
+                        key={item.menuItemId}
+                        className="grid grid-cols-1 md:grid-cols-[1fr_120px_auto] gap-3 items-center p-3 border border-border rounded-lg"
+                     >
+                        <div>
+                           <p className="font-medium text-foreground">
+                              {item.name}
+                           </p>
+                           <p className="text-sm text-muted-foreground">
+                              ${item.unitPrice.toFixed(2)} each
+                           </p>
+                        </div>
+                        <input
+                           type="number"
+                           min="1"
+                           value={item.qty}
+                           onChange={(e) =>
+                              updateItemQty(
+                                 item.menuItemId,
+                                 Number(e.target.value)
+                              )
+                           }
+                           className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
+                        />
+                        <button
+                           type="button"
+                           onClick={() => removeItem(item.menuItemId)}
+                           className="px-3 py-2 text-sm border border-border rounded-md hover:bg-muted flex items-center gap-2 justify-center"
+                        >
+                           <Trash2 className="w-4 h-4" />
+                           Remove
+                        </button>
+                     </div>
+                  ))}
+               </div>
+
+               <div className="space-y-3 pt-2 border-t border-border">
+                  <h3 className="font-medium text-foreground">Add item</h3>
+                  {loadingMenu ? (
+                     <p className="text-sm text-muted-foreground">
+                        Loading menu items...
+                     </p>
+                  ) : (
+                     <div className="grid grid-cols-1 md:grid-cols-[1fr_120px_auto] gap-3 items-center">
+                        <select
+                           value={newMenuItemId}
+                           onChange={(e) => setNewMenuItemId(e.target.value)}
+                           className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
+                        >
+                           <option value="">Select menu item</option>
+                           {menuItems.map((menuItem) => (
+                              <option key={menuItem.id} value={menuItem.id}>
+                                 {menuItem.name} — ${menuItem.price.toFixed(2)}
+                              </option>
+                           ))}
+                        </select>
+                        <input
+                           type="number"
+                           min="1"
+                           value={newQty}
+                           onChange={(e) => setNewQty(e.target.value)}
+                           className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
+                        />
+                        <button
+                           type="button"
+                           onClick={addItem}
+                           className="px-3 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 flex items-center gap-2 justify-center"
+                        >
+                           <Plus className="w-4 h-4" />
+                           Add
+                        </button>
+                     </div>
+                  )}
+               </div>
+
+               <div className="flex items-center justify-between pt-4 border-t border-border">
+                  <div>
+                     <p className="text-sm text-muted-foreground">Total</p>
+                     <p className="text-lg font-semibold text-foreground">
+                        ${total.toFixed(2)}
+                     </p>
+                  </div>
+                  <div className="flex gap-3">
+                     <button
+                        type="button"
+                        onClick={handleCancelOrder}
+                        className="px-4 py-2 border border-red-300 text-red-700 rounded-md hover:bg-red-50"
+                     >
+                        Cancel Order
+                     </button>
+                     <button
+                        type="button"
+                        onClick={handleSave}
+                        disabled={saving}
+                        className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50"
+                     >
+                        {saving ? 'Saving...' : 'Save Changes'}
+                     </button>
                   </div>
                </div>
             </div>

@@ -156,7 +156,7 @@ export const orderController = {
          if (!orderNumber) {
             return res.status(400).json({ error: 'Order number is required' });
          }
-         const { items, note } = req.body;
+         const { items, note } = parseResult.data;
 
          const updatedOrder = await orderService.updateOrderByOrderNo(
             orderNumber,

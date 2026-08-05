@@ -296,6 +296,13 @@ router.patch(
    menuItemController.reorderMenuItems
 );
 
+router.post(
+   '/api/menu-items/import',
+   authenticate,
+   requireRole('ADMIN', 'ORGANIZER'),
+   menuItemController.importMenuItems
+);
+
 // PATCH /api/menu-items/:id - update menu item details.
 router.patch(
    '/api/menu-items/:id',
@@ -347,6 +354,8 @@ router.get('/api/orders/id/:orderId', orderController.getOrderById);
 // PATCH /api/orders/:orderNumber - update order details (e.g. change qty, add/remove items, update note).
 router.patch(
    '/api/orders/:orderNumber',
+   authenticate,
+   requireRole('ADMIN', 'ORGANIZER'),
    orderController.updateOrderByOrderNumber
 );
 

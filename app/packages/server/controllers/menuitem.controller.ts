@@ -64,6 +64,27 @@ const reorderRequestSchema = z.object({
    ),
 });
 
+const menuItemImportRequestSchema = z.object({
+   eventId: z.number().int().positive('eventId must be a positive number'),
+   items: z
+      .array(
+         z.object({
+            flag: z.enum(['ADD', 'UPDATE', 'REMOVE']),
+            name: z.string().trim().min(1, 'item name is required'),
+            chef: z.string().trim().optional().nullable(),
+            category: z.nativeEnum(MenuCategory),
+            price: z
+               .number()
+               .nonnegative('price must be a non-negative number'),
+            stockQty: z
+               .number()
+               .int()
+               .nonnegative('stock quantity must be a non-negative integer'),
+         })
+      )
+      .min(1, 'At least one menu item is required'),
+});
+
 export const menuItemController = {
    async createMenuItem(req: Request, res: Response) {
       const parseResult = menuItemCreateRequestSchema.safeParse(req.body);
@@ -86,7 +107,7 @@ export const menuItemController = {
          const menuItem = await menuItemService.createMenuItem({
             eventId,
             name,
-            chef,
+            chef: chef ?? null,
             category,
             price,
             stockQty,
@@ -114,7 +135,7 @@ export const menuItemController = {
          const menuItemsToCreate = items.map((item, index) => ({
             eventId,
             name: item.name,
-            chef: item.chef,
+            chef: item.chef ?? null,
             category: item.category as MenuCategory,
             price: item.price,
             stockQty: item.stockQty,
@@ -208,6 +229,24 @@ export const menuItemController = {
          res.json({ message: 'Menu items reordered successfully' });
       } catch (error) {
          return res.status(500).json({ error: 'Failed to reorder menu items' });
+      }
+   },
+
+   async importMenuItems(req: Request, res: Response) {
+      const parseResult = menuItemImportRequestSchema.safeParse(req.body);
+      if (!parseResult.success) {
+         return res.status(400).json({ error: parseResult.error.format() });
+      }
+
+      try {
+         const { eventId, items } = parseResult.data;
+         console.log(`Importing menu items for eventId: ${eventId}`, items);
+         const result = await menuItemService.importMenuItems(eventId, items);
+         return res.json(result);
+      } catch (error) {
+         const message =
+            error instanceof Error ? error.message : 'Failed to import menu';
+         return res.status(400).json({ error: message });
       }
    },
 

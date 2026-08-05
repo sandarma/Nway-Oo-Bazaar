@@ -73,7 +73,9 @@ export default function App() {
                      <Route path="/register" element={<RegisterPage />} />
 
                      {/* Protected admin routes */}
-                     <Route element={<ProtectedRoute />}>
+                     <Route
+                        element={<ProtectedRoute allowedRoles={['ADMIN']} />}
+                     >
                         <Route path="/admin" element={<AdminLayout />}>
                            <Route
                               path="invitations"
@@ -84,7 +86,13 @@ export default function App() {
                      </Route>
 
                      {/* Protected dashboard routes */}
-                     <Route element={<ProtectedRoute />}>
+                     <Route
+                        element={
+                           <ProtectedRoute
+                              allowedRoles={['ADMIN', 'ORGANIZER']}
+                           />
+                        }
+                     >
                         <Route path="/dashboard" element={<DashboardLayout />}>
                            <Route index element={<DashboardPage />} />
                            <Route

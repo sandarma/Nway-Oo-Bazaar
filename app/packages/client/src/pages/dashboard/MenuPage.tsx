@@ -12,6 +12,8 @@ import {
    ArrowUp,
    ArrowDown,
    Loader2,
+   Upload,
+   Download,
 } from 'lucide-react';
 import EventSelector from '@/components/dashboard/EventSelector';
 
@@ -36,18 +38,74 @@ const CATEGORIES = [
    'CINEMA_TICKET',
 ];
 
+type MenuImportFlag = 'ADD' | 'UPDATE' | 'REMOVE';
+
+type MenuImportRow = {
+   flag: MenuImportFlag;
+   chef: string;
+   name: string;
+   category: MenuItem['category'];
+   price: number;
+   stockQty: number;
+};
+
+type MenuImportChange = {
+   flag: MenuImportFlag;
+   name: string;
+   current: MenuItem | null;
+   next: MenuImportRow | null;
+};
+
 export default function MenuPage() {
    const { toast } = useToast();
    const [searchParams] = useSearchParams();
+   const fileInputRef = useRef<HTMLInputElement | null>(null);
    const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
    const [loading, setLoading] = useState(true);
    const [showCreateModal, setShowCreateModal] = useState(false);
    const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
+   const [importPreview, setImportPreview] = useState<{
+      fileName: string;
+      changes: MenuImportChange[];
+      items: MenuImportRow[];
+      result?: {
+         message: string;
+         summary: {
+            total: number;
+            added: number;
+            updated: number;
+            removed: number;
+            failed: number;
+         };
+         failedItems: {
+            flag: string;
+            name: string;
+            reason: string;
+         }[];
+      };
+   } | null>(null);
+   const [importingMenu, setImportingMenu] = useState(false);
    const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
    const [draggedId, setDraggedId] = useState<number | null>(null);
    const [dragOverId, setDragOverId] = useState<number | null>(null);
    const [isReordering, setIsReordering] = useState(false);
    const isReorderingRef = useRef(false);
+
+   const [importResult, setImportResult] = useState<{
+      message: string;
+      summary: {
+         total: number;
+         added: number;
+         updated: number;
+         removed: number;
+         failed: number;
+      };
+      failedItems: {
+         flag: 'ADD' | 'UPDATE' | 'REMOVE';
+         name: string;
+         reason: string;
+      }[];
+   } | null>(null);
 
    const eventId = searchParams.get('eventId');
 
@@ -140,6 +198,95 @@ export default function MenuPage() {
       } catch (error) {
          console.error('Failed to update menu items:', error);
          toast('Failed to update menu items', 'error');
+      }
+   };
+
+   const downloadMenuTemplate = () => {
+      const rows = [
+         [
+            'Flag',
+            'Chef',
+            'Name of the Dish (Menu)',
+            'Category',
+            'Price',
+            'Stock Quantity',
+         ],
+         ['ADD', '', 'Example Dish', 'MAIN_DISH', '10', '20'],
+         ['UPDATE', '', 'Existing Snack', 'SNACK', '12', '15'],
+         ['ADD', '', 'Example Dessert', 'DESSERT', '10', '20'],
+         ['REMOVE', '', 'Old Drink', 'DRINK', '0', '0'],
+      ];
+      const csv = rows
+         .map((row) =>
+            row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+         )
+         .join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'menu-import-template.csv';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+   };
+
+   const openImportPicker = () => {
+      fileInputRef.current?.click();
+   };
+
+   const handleImportFile = async (
+      event: React.ChangeEvent<HTMLInputElement>
+   ) => {
+      const file = event.target.files?.[0];
+      event.target.value = '';
+      if (!file || !eventId) return;
+
+      try {
+         const text = await file.text();
+         const rows = parseMenuImportCsv(text);
+         const preview = buildMenuImportPreview(menuItems, rows);
+         setImportPreview({
+            fileName: file.name,
+            changes: preview.changes,
+            items: preview.items,
+         });
+      } catch (error) {
+         const message =
+            error instanceof Error ? error.message : 'Failed to parse CSV';
+         toast(message, 'error');
+      }
+   };
+
+   const handleConfirmImport = async () => {
+      if (!eventId || !importPreview) return;
+
+      setImportingMenu(true);
+      try {
+         const response = await api.post('/menu-items/import', {
+            eventId: Number(eventId),
+            items: importPreview.items,
+         });
+         setMenuItems(response.data.menuItems);
+
+         setImportPreview((prev) =>
+            prev
+               ? {
+                    ...prev,
+                    result: {
+                       message: response.data.message,
+                       summary: response.data.summary,
+                       failedItems: response.data.failedItems,
+                    },
+                 }
+               : null
+         );
+      } catch (error) {
+         console.error('Failed to import menu:', error);
+         toast('Failed to import menu', 'error');
+      } finally {
+         setImportingMenu(false);
       }
    };
 
@@ -282,6 +429,27 @@ export default function MenuPage() {
             <h1 className="text-2xl font-bold text-foreground">Menu Items</h1>
             <div className="flex gap-2 items-center">
                <EventSelector />
+               <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv,text/csv"
+                  className="hidden"
+                  onChange={handleImportFile}
+               />
+               <button
+                  onClick={downloadMenuTemplate}
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm border border-border rounded-md text-foreground hover:bg-muted"
+               >
+                  <Download className="w-4 h-4" />
+                  Template
+               </button>
+               <button
+                  onClick={openImportPicker}
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm border border-border rounded-md text-foreground hover:bg-muted"
+               >
+                  <Upload className="w-4 h-4" />
+                  Import CSV
+               </button>
                <button
                   onClick={() => handleBulkMarkSoldOut(true)}
                   className="px-3 py-1.5 text-sm border border-border rounded-md text-foreground hover:bg-muted"
@@ -424,6 +592,17 @@ export default function MenuPage() {
                item={editingItem}
                onClose={() => setEditingItem(null)}
                onSubmit={handleUpdate}
+            />
+         )}
+
+         {importPreview && (
+            <MenuImportModal
+               fileName={importPreview.fileName}
+               changes={importPreview.changes}
+               loading={importingMenu}
+               importResult={importPreview.result}
+               onClose={() => setImportPreview(null)}
+               onConfirm={handleConfirmImport}
             />
          )}
       </div>
@@ -695,4 +874,364 @@ function MenuItemModal({
          </div>
       </div>
    );
+}
+
+function MenuImportModal({
+   fileName,
+   changes,
+   loading,
+   importResult,
+   onClose,
+   onConfirm,
+}: {
+   fileName: string;
+   changes: MenuImportChange[];
+   loading: boolean;
+   importResult?: {
+      message: string;
+      summary: {
+         total: number;
+         added: number;
+         updated: number;
+         removed: number;
+         failed: number;
+      };
+      failedItems: {
+         flag: string;
+         name: string;
+         reason: string;
+      }[];
+   } | null;
+   onClose: () => void;
+   onConfirm: () => void;
+}) {
+   const added = changes.filter((change) => change.flag === 'ADD');
+   const updated = changes.filter((change) => change.flag === 'UPDATE');
+   const removed = changes.filter((change) => change.flag === 'REMOVE');
+
+   return (
+      <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+         <div className="bg-card rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <div className="p-4 border-b border-border flex items-center justify-between">
+               <div>
+                  <h2 className="text-lg font-semibold text-foreground">
+                     {importResult ? 'Import Results' : 'Review menu import'}
+                  </h2>
+                  <p className="text-sm text-muted-foreground">{fileName}</p>
+               </div>
+               <button
+                  onClick={onClose}
+                  className="p-2 hover:bg-muted rounded-md"
+                  disabled={loading}
+               >
+                  ✕
+               </button>
+            </div>
+
+            {importResult ? (
+               // Results UI
+               <div className="space-y-4">
+                  <p className=" rounded-md bg-yellow-50 border border-yellow-200 text-yellow-800 p-3">
+                     {importResult.message}
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-3 p-3">
+                     <div>Added: {importResult.summary.added}</div>
+
+                     <div>Updated: {importResult.summary.updated}</div>
+
+                     <div>Removed: {importResult.summary.removed}</div>
+
+                     <div>Skipped: {importResult.summary.failed}</div>
+                  </div>
+
+                  {importResult.failedItems.length > 0 && (
+                     <div>
+                        <h3 className="font-semibold p-3">Skipped Items</h3>
+
+                        {importResult.failedItems.map((item) => (
+                           <div
+                              key={item.flag + item.name}
+                              className="border rounded p-3 mt-2"
+                           >
+                              <div className="font-medium">{item.name}</div>
+
+                              <div className="text-sm text-red-600">
+                                 {item.reason}
+                              </div>
+                           </div>
+                        ))}
+                     </div>
+                  )}
+               </div>
+            ) : (
+               // Existing Preview UI
+
+               <div className="p-4 space-y-4">
+                  <div className="grid grid-cols-3 gap-3 text-sm">
+                     <div className="p-3 rounded-lg bg-emerald-50 text-emerald-900">
+                        Add: {added.length}
+                     </div>
+                     <div className="p-3 rounded-lg bg-blue-50 text-blue-900">
+                        Update: {updated.length}
+                     </div>
+                     <div className="p-3 rounded-lg bg-rose-50 text-rose-900">
+                        Remove: {removed.length}
+                     </div>
+                  </div>
+
+                  <div className="space-y-3">
+                     {changes.map((change, index) => (
+                        <div
+                           key={`${change.flag}-${change.name}-${index}`}
+                           className="p-3 border border-border rounded-lg"
+                        >
+                           <div className="flex items-center justify-between gap-4">
+                              <div>
+                                 <p className="font-medium text-foreground">
+                                    {change.name}
+                                 </p>
+                                 <p className="text-xs text-muted-foreground">
+                                    {change.flag}
+                                 </p>
+                              </div>
+                              <span className="text-sm text-muted-foreground">
+                                 {change.next
+                                    ? `${change.next.chef} • ${change.next.category} • $${change.next.price.toFixed(2)} • ${change.next.stockQty}`
+                                    : 'Will be removed'}
+                              </span>
+                           </div>
+                           <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                              <div className="p-2 rounded-md bg-muted/40">
+                                 <span className="text-muted-foreground">
+                                    Current:
+                                 </span>{' '}
+                                 {change.current
+                                    ? `${change.current.name} • ${change.current.chef} • ${change.current.category} • $${change.current.price.toFixed(2)} • ${change.current.stockQty}`
+                                    : '-'}
+                              </div>
+                              <div className="p-2 rounded-md bg-muted/40">
+                                 <span className="text-muted-foreground">
+                                    New:
+                                 </span>{' '}
+                                 {change.next
+                                    ? `${change.next.name} • ${change.next.chef} • ${change.next.category} • $${change.next.price.toFixed(2)} • ${change.next.stockQty}`
+                                    : '-'}
+                              </div>
+                           </div>
+                        </div>
+                     ))}
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                     {importResult ? (
+                        <button onClick={onClose}>Close</button>
+                     ) : (
+                        <>
+                           <button
+                              type="button"
+                              onClick={onClose}
+                              disabled={loading}
+                              className="flex-1 px-4 py-2 border border-border rounded-md text-foreground hover:bg-muted disabled:opacity-50"
+                           >
+                              No
+                           </button>
+                           <button
+                              type="button"
+                              onClick={onConfirm}
+                              disabled={loading}
+                              className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50"
+                           >
+                              {loading ? 'Importing...' : 'Yes, commit changes'}
+                           </button>
+                        </>
+                     )}
+                  </div>
+               </div>
+            )}
+         </div>
+      </div>
+   );
+}
+
+function parseMenuImportCsv(text: string): MenuImportRow[] {
+   const lines = parseCsvLines(text).filter((line) =>
+      line.some((cell) => cell.trim() !== '')
+   );
+   if (lines.length < 2) {
+      throw new Error('CSV must include a header row and at least one item');
+   }
+
+   const headerIndex = new Map(
+      lines[0].map((header, index) => [normalizeHeader(header), index])
+   );
+
+   // console.log('headerIndex', headerIndex);
+
+   const requiredHeaders = [
+      'flag',
+      'chef',
+      'nameofthedishmenu',
+      'category',
+      'price',
+      'stockquantity',
+   ];
+
+   for (const header of requiredHeaders) {
+      if (!headerIndex.has(header)) {
+         throw new Error(
+            'CSV headers must include Flag, Chef, Name of the Dish (Menu), Category, Price, Stock Quantity'
+         );
+      }
+   }
+
+   return lines.slice(1).map((line) => {
+      const flag = normalizeFlag(line[headerIndex.get('flag') ?? -1]);
+      const name = line[headerIndex.get('nameofthedishmenu') ?? -1]?.trim();
+      const chef = line[headerIndex.get('chef') ?? -1]?.trim() || '';
+      const category = normalizeCategory(
+         line[headerIndex.get('category') ?? -1]
+      );
+      const price = Number(line[headerIndex.get('price') ?? -1]);
+      const stockQty = Number(line[headerIndex.get('stockquantity') ?? -1]);
+
+      if (!name) {
+         throw new Error('Each row must include a menu item name');
+      }
+      if (Number.isNaN(price) || price < 0) {
+         throw new Error(`Invalid price for "${name}"`);
+      }
+      if (!Number.isInteger(stockQty) || stockQty < 0) {
+         throw new Error(`Invalid stock quantity for "${name}"`);
+      }
+
+      return {
+         flag,
+         chef,
+         name,
+         category,
+         price,
+         stockQty,
+      };
+   });
+}
+
+function buildMenuImportPreview(
+   currentItems: MenuItem[],
+   items: MenuImportRow[]
+) {
+   const currentByName = new Map(
+      currentItems.map((item) => [item.name.trim().toLowerCase(), item])
+   );
+
+   const changes: MenuImportChange[] = [];
+
+   for (const item of items) {
+      const key = item.name.trim().toLowerCase();
+      const current = currentByName.get(key) ?? null;
+
+      if (item.flag === 'ADD') {
+         if (current) {
+            throw new Error(`Menu item "${item.name}" already exists`);
+         }
+         changes.push({
+            flag: 'ADD',
+            name: item.name,
+            current: null,
+            next: item,
+         });
+         continue;
+      }
+
+      if (!current) {
+         throw new Error(`Menu item "${item.name}" not found`);
+      }
+
+      if (item.flag === 'UPDATE') {
+         changes.push({
+            flag: 'UPDATE',
+            name: item.name,
+            current,
+            next: item,
+         });
+         continue;
+      }
+
+      changes.push({
+         flag: 'REMOVE',
+         name: item.name,
+         current,
+         next: null,
+      });
+   }
+
+   return { changes, items };
+}
+
+function parseCsvLines(text: string): string[][] {
+   const rows: string[][] = [];
+   let current = '';
+   let row: string[] = [];
+   let inQuotes = false;
+
+   for (let index = 0; index < text.length; index++) {
+      const char = text[index];
+      const next = text[index + 1];
+
+      if (char === '"') {
+         if (inQuotes && next === '"') {
+            current += '"';
+            index += 1;
+         } else {
+            inQuotes = !inQuotes;
+         }
+         continue;
+      }
+
+      if (char === ',' && !inQuotes) {
+         row.push(current.trim());
+         current = '';
+         continue;
+      }
+
+      if ((char === '\n' || char === '\r') && !inQuotes) {
+         if (char === '\r' && next === '\n') {
+            index += 1;
+         }
+         row.push(current.trim());
+         rows.push(row);
+         row = [];
+         current = '';
+         continue;
+      }
+
+      current += char;
+   }
+
+   if (current.length > 0 || row.length > 0) {
+      row.push(current.trim());
+      rows.push(row);
+   }
+
+   return rows;
+}
+
+function normalizeHeader(header: string) {
+   return header.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function normalizeFlag(value: string | undefined) {
+   const flag = value?.trim().toUpperCase();
+   if (flag === 'ADD' || flag === 'UPDATE' || flag === 'REMOVE') {
+      return flag;
+   }
+   throw new Error(`Invalid flag "${value ?? ''}"`);
+}
+
+function normalizeCategory(value: string | undefined) {
+   const category = value?.trim().toUpperCase();
+   if (CATEGORIES.includes(category || '')) {
+      return category as MenuItem['category'];
+   }
+   throw new Error(`Invalid category "${value ?? ''}"`);
 }

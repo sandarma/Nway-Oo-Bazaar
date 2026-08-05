@@ -489,7 +489,13 @@ function EventModal({
                         Pickup Locations *
                      </label>
                      <div className="flex flex-wrap gap-3">
-                        {['In Event', 'Downtown', 'Hamilton'].map((loc) => (
+                        {[
+                           'In Event',
+                           'Downtown CBD',
+                           'Hamilton',
+                           'Kelston',
+                           'Northshore',
+                        ].map((loc) => (
                            <label key={loc} className="flex items-center gap-2">
                               <input
                                  type="checkbox"

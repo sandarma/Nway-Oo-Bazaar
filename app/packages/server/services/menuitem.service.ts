@@ -26,6 +26,20 @@ export const menuItemService = {
       return menuItemRepository.reorderMenuItems(items);
    },
 
+   async importMenuItems(
+      eventId: number,
+      items: {
+         flag: 'ADD' | 'UPDATE' | 'REMOVE';
+         name: string;
+         chef?: string | null;
+         category: import('@prisma/client').MenuCategory;
+         price: number;
+         stockQty: number;
+      }[]
+   ) {
+      return menuItemRepository.importMenuItems(eventId, items);
+   },
+
    async deleteMenuItem(id: number): Promise<void> {
       await menuItemRepository.deleteMenuItem(id);
    },
