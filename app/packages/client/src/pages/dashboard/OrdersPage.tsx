@@ -687,6 +687,21 @@ function OrderEditModal({
          unitPrice: item.unitPrice,
       }))
    );
+
+   // Store original state for discard changes
+   const originalItems = order.items.map((item) => ({
+      menuItemId: item.menuItemId,
+      name: item.menuItem.name,
+      qty: item.qty,
+      unitPrice: item.unitPrice,
+   }));
+   const originalNote = order.note || '';
+
+   const handleDiscardChanges = () => {
+      setItems(originalItems);
+      setNote(originalNote);
+      toast('Changes discarded', 'success');
+   };
    const [newMenuItemId, setNewMenuItemId] = useState('');
    const [newQty, setNewQty] = useState('1');
 
@@ -951,6 +966,13 @@ function OrderEditModal({
                         className="px-4 py-2 border border-red-300 text-red-700 rounded-md hover:bg-red-50"
                      >
                         Cancel Order
+                     </button>
+                     <button
+                        type="button"
+                        onClick={handleDiscardChanges}
+                        className="px-4 py-2 border border-border text-foreground rounded-md hover:bg-muted"
+                     >
+                        Discard Changes
                      </button>
                      <button
                         type="button"

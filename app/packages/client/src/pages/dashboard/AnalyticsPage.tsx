@@ -252,7 +252,6 @@ export default function AnalyticsPage() {
                         <div className="space-y-2">
                            {Object.entries(analytics.itemsSold)
                               .sort(([, a], [, b]) => b - a)
-                              .slice(0, 10)
                               .map(([name, qty]) => (
                                  <div
                                     key={name}

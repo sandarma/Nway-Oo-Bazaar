@@ -136,6 +136,9 @@ export const exportService = {
          rows.push([order.customer.name]);
          rows.push(['Order No', order.orderNumber]);
          rows.push(['Pickup', order.pickupLocation || 'Event']);
+         if (order.note) {
+            rows.push(['Note', order.note]);
+         }
          rows.push(['', 'Menu', 'Unit Price', 'Qty', 'Subtotal']);
 
          order.items.forEach((item) => {
