@@ -15,11 +15,15 @@ export const orderRepository = {
       customerId: number,
       paymentMode: 'IN_CASH' | 'BANK_TRANSFER',
       pickupLocation: string | undefined,
-      items: { menuItemId: number; quantity: number }[]
+      items: { menuItemId: number; quantity: number }[],
+      donation: number = 0,
+      discount: number = 0,
+      receivedFrom?: string,
+      receivedFromOther?: string
    ): Promise<Order> {
       return prisma.$transaction(
          async (tx) => {
-            let total = 0;
+            let subtotal = 0;
             const pricedItems: PricedOrderItem[] = [];
 
             for (const item of items) {
@@ -35,15 +39,18 @@ export const orderRepository = {
                   );
                }
 
-               const subtotal = menu.price * item.quantity;
-               total += subtotal;
+               const itemSubtotal = menu.price * item.quantity;
+               subtotal += itemSubtotal;
                pricedItems.push({
                   menuItemId: menu.id,
                   quantity: item.quantity,
                   unitPrice: menu.price,
-                  subtotal,
+                  subtotal: itemSubtotal,
                });
             }
+
+            // Calculate final total with donation and discount
+            const total = subtotal + donation - discount;
 
             const createdOrder = await tx.order.create({
                data: {
@@ -51,6 +58,10 @@ export const orderRepository = {
                   eventId,
                   orderNumber,
                   note,
+                  donation,
+                  discount,
+                  receivedFrom,
+                  receivedFromOther,
                   total,
                   paymentMode,
                   pickupLocation,
@@ -96,7 +107,12 @@ export const orderRepository = {
    async updateOrderByOrderNoWithStock(
       orderNumber: string,
       note: string | null,
-      items: { menuItemId: number; quantity: number }[]
+      items: { menuItemId: number; quantity: number }[],
+      donation?: number,
+      discount?: number,
+      receivedFrom?: string,
+      receivedFromOther?: string,
+      pickupLocation?: string | null
    ): Promise<Order> {
       return prisma.$transaction(
          async (tx) => {
@@ -167,7 +183,7 @@ export const orderRepository = {
                });
             }
 
-            let total = 0;
+            let subtotal = 0;
             const pricedItems: PricedOrderItem[] = [];
             for (const item of items) {
                const menu = await tx.menuItem.findUnique({
@@ -175,15 +191,20 @@ export const orderRepository = {
                });
                if (!menu)
                   throw new Error(`Menu item ${item.menuItemId} not found`);
-               const subtotal = menu.price * item.quantity;
-               total += subtotal;
+               const itemSubtotal = menu.price * item.quantity;
+               subtotal += itemSubtotal;
                pricedItems.push({
                   menuItemId: item.menuItemId,
                   quantity: item.quantity,
                   unitPrice: menu.price,
-                  subtotal,
+                  subtotal: itemSubtotal,
                });
             }
+
+            // Calculate final total with donation and discount
+            const finalDonation = donation ?? existingOrder.donation;
+            const finalDiscount = discount ?? existingOrder.discount;
+            const total = subtotal + finalDonation - finalDiscount;
 
             await tx.orderItem.deleteMany({
                where: { orderId: existingOrder.id },
@@ -193,6 +214,15 @@ export const orderRepository = {
                where: { id: existingOrder.id },
                data: {
                   note,
+                  donation: finalDonation,
+                  discount: finalDiscount,
+                  receivedFrom: receivedFrom ?? existingOrder.receivedFrom,
+                  receivedFromOther:
+                     receivedFromOther ?? existingOrder.receivedFromOther,
+                  pickupLocation:
+                     pickupLocation !== undefined
+                        ? pickupLocation
+                        : existingOrder.pickupLocation,
                   total,
                   items: {
                      create: pricedItems.map((item) => ({
@@ -383,10 +413,10 @@ export const orderRepository = {
       });
    },
 
-   async getMaxOrderNumberForDate(datePrefix: string): Promise<string | null> {
+   async getMaxOrderNumberForPrefix(prefix: string): Promise<string | null> {
       const lastOrder = await prisma.order.findFirst({
          where: {
-            orderNumber: { startsWith: `ORD-${datePrefix}-` },
+            orderNumber: { startsWith: `${prefix}-` },
          },
          orderBy: { orderNumber: 'desc' },
          select: { orderNumber: true },

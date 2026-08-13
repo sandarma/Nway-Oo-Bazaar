@@ -85,7 +85,7 @@ export const dashboardRepository = {
       const where: Prisma.OrderWhereInput = { eventId };
 
       if (status && status !== 'ALL') {
-         where.status = status;
+         where.status = status as Prisma.EnumOrderStatusFilter['equals'];
       }
 
       if (search) {

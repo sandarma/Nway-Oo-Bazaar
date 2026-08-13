@@ -151,8 +151,8 @@ export default function MenuOrderingPage() {
 
    const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!event || cart.length === 0 || !name.trim() || !phone.trim()) return;
-      if (!validatePhone(phone)) return;
+      if (!event || cart.length === 0 || !name.trim()) return;
+      if (phone.trim() && !validatePhone(phone)) return;
       if (event.eventType === 'FOOD_FAIR' && !pickupLocation) {
          setSubmitError('Please select a pickup location');
          return;
@@ -215,6 +215,36 @@ export default function MenuOrderingPage() {
             <h1 className="text-2xl font-bold mb-2">Event not found</h1>
             <Link to="/events" className="text-sm text-primary hover:underline">
                ← Back to Events
+            </Link>
+         </div>
+      );
+   }
+
+   // Check if pre-order is closed
+   const isPreOrderClosed =
+      event.preOrderClose && new Date() > new Date(event.preOrderClose);
+
+   if (isPreOrderClosed) {
+      return (
+         <div className="max-w-6xl mx-auto px-4 py-12 text-center">
+            <h1 className="text-2xl font-bold mb-2">Pre-order is closed</h1>
+            <p className="text-muted-foreground mb-4">
+               This event is no longer accepting pre-orders.
+            </p>
+            <p className="text-sm text-muted-foreground mb-4">
+               Pre-order closed on:{' '}
+               {new Date(event.preOrderClose!).toLocaleDateString('en-NZ', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+               })}
+            </p>
+            <Link
+               to={`/events/${event.id}`}
+               className="text-sm text-primary hover:underline"
+            >
+               ← Back to Event Details
             </Link>
          </div>
       );
@@ -386,17 +416,20 @@ export default function MenuOrderingPage() {
                            </div>
                            <div>
                               <label className="text-sm font-medium">
-                                 Phone Number *
+                                 Contact Phone / Email
                               </label>
                               <input
-                                 type="tel"
+                                 type="text"
                                  value={phone}
                                  onChange={(e) => {
                                     setPhone(e.target.value);
-                                    validatePhone(e.target.value);
+                                    if (e.target.value.trim()) {
+                                       validatePhone(e.target.value);
+                                    } else {
+                                       setPhoneError('');
+                                    }
                                  }}
-                                 required
-                                 placeholder="e.g. 021 123 456"
+                                 placeholder="e.g. 021 123 456 or email"
                                  className="w-full mt-1 px-3 py-2 border border-border rounded-md text-sm bg-background"
                               />
                               {phoneError && (
@@ -438,6 +471,8 @@ export default function MenuOrderingPage() {
                                        <option value="">Select location</option>
                                        {event.pickupLocations
                                           .split(',')
+                                          .map((loc) => loc.trim())
+                                          .filter((loc) => loc)
                                           .map((loc) => (
                                              <option key={loc} value={loc}>
                                                 {loc}
@@ -499,12 +534,16 @@ export default function MenuOrderingPage() {
                                  submitting ||
                                  cart.length === 0 ||
                                  !name.trim() ||
-                                 !phone.trim() ||
-                                 !isPhoneValid(phone)
+                                 (phone.trim() && !isPhoneValid(phone)) ||
+                                 isPreOrderClosed
                               }
                               className="w-full bg-primary text-primary-foreground py-2.5 rounded-md text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                            >
-                              {submitting ? 'Placing Order...' : 'Place Order'}
+                              {submitting
+                                 ? 'Placing Order...'
+                                 : isPreOrderClosed
+                                   ? 'Pre-order Closed'
+                                   : 'Place Order'}
                            </button>
                         </form>
                      </>

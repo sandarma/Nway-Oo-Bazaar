@@ -429,39 +429,6 @@ export default function MenuPage() {
             <h1 className="text-2xl font-bold text-foreground">Menu Items</h1>
             <div className="flex gap-2 items-center">
                <EventSelector />
-               <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".csv,text/csv"
-                  className="hidden"
-                  onChange={handleImportFile}
-               />
-               <button
-                  onClick={downloadMenuTemplate}
-                  className="flex items-center gap-2 px-3 py-1.5 text-sm border border-border rounded-md text-foreground hover:bg-muted"
-               >
-                  <Download className="w-4 h-4" />
-                  Template
-               </button>
-               <button
-                  onClick={openImportPicker}
-                  className="flex items-center gap-2 px-3 py-1.5 text-sm border border-border rounded-md text-foreground hover:bg-muted"
-               >
-                  <Upload className="w-4 h-4" />
-                  Import CSV
-               </button>
-               <button
-                  onClick={() => handleBulkMarkSoldOut(true)}
-                  className="px-3 py-1.5 text-sm border border-border rounded-md text-foreground hover:bg-muted"
-               >
-                  Mark All Sold Out
-               </button>
-               <button
-                  onClick={() => handleBulkMarkSoldOut(false)}
-                  className="px-3 py-1.5 text-sm border border-border rounded-md text-foreground hover:bg-muted"
-               >
-                  Mark All Available
-               </button>
                <button
                   onClick={() => setShowCreateModal(true)}
                   className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
@@ -470,6 +437,41 @@ export default function MenuPage() {
                   Add Item
                </button>
             </div>
+         </div>
+         <div className="flex justify-end gap-2">
+            <input
+               ref={fileInputRef}
+               type="file"
+               accept=".csv,text/csv"
+               className="hidden"
+               onChange={handleImportFile}
+            />
+            <button
+               onClick={downloadMenuTemplate}
+               className="flex items-center gap-2 px-3 py-1.5 text-sm border border-border rounded-md text-foreground hover:bg-muted"
+            >
+               <Download className="w-4 h-4" />
+               Template
+            </button>
+            <button
+               onClick={openImportPicker}
+               className="flex items-center gap-2 px-3 py-1.5 text-sm border border-border rounded-md text-foreground hover:bg-muted"
+            >
+               <Upload className="w-4 h-4" />
+               Import CSV
+            </button>
+            <button
+               onClick={() => handleBulkMarkSoldOut(true)}
+               className="px-3 py-1.5 text-sm border border-border rounded-md text-foreground hover:bg-muted"
+            >
+               Mark All Sold Out
+            </button>
+            <button
+               onClick={() => handleBulkMarkSoldOut(false)}
+               className="px-3 py-1.5 text-sm border border-border rounded-md text-foreground hover:bg-muted"
+            >
+               Mark All Available
+            </button>
          </div>
 
          {/* Category Filter */}

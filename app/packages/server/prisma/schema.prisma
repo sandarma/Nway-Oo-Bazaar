@@ -66,6 +66,7 @@ model Event {
   id Int @id @default(autoincrement())
 
   name String @db.VarChar(255)
+  eventCodePrefix String @unique @db.VarChar(20)
   eventType EventType @default(FOOD_FAIR)
 
   eventInfo String? @db.Text
@@ -163,6 +164,11 @@ model Order {
   orderNumber String @unique
 
   note String? @db.Text
+
+  donation Float @default(0)
+  discount Float @default(0)
+  receivedFrom String? @db.VarChar(100)
+  receivedFromOther String? @db.VarChar(255)
 
   eventId Int
   event   Event @relation(fields: [eventId], references: [id], onDelete: Cascade)

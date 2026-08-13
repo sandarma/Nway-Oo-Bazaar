@@ -12,6 +12,12 @@ type EventType = (typeof EventType)[keyof typeof EventType];
 
 const eventCreateRequestSchema = z.object({
    name: z.string().trim().min(1, 'event name is required'),
+   eventCodePrefix: z
+      .string()
+      .trim()
+      .min(1, 'event code prefix is required')
+      .max(20, 'event code prefix must be 20 characters or less')
+      .regex(/^[A-Z0-9]+$/i, 'event code prefix must be alphanumeric'),
    eventType: z.nativeEnum(EventType),
    eventInfo: z.string().trim().min(1, 'event info is required'),
    hostedBy: z.string().trim().min(1, 'hosted by is required'),
@@ -27,6 +33,12 @@ const eventCreateRequestSchema = z.object({
 
 const eventUpdateRequestSchema = z.object({
    name: z.string().trim().min(1, 'event name is required').optional(),
+   eventCodePrefix: z
+      .string()
+      .trim()
+      .max(20, 'event code prefix must be 20 characters or less')
+      .regex(/^[A-Z0-9]+$/i, 'event code prefix must be alphanumeric')
+      .optional(),
    eventType: z.nativeEnum(EventType).optional(),
    eventInfo: z.string().trim().min(1, 'event info is required').optional(),
    hostedBy: z.string().trim().optional(),
@@ -48,6 +60,7 @@ export const eventController = {
       try {
          const {
             name,
+            eventCodePrefix,
             eventType,
             eventInfo,
             hostedBy,
@@ -66,6 +79,7 @@ export const eventController = {
 
          const event = await eventService.createEvent({
             name,
+            eventCodePrefix: eventCodePrefix.toUpperCase(),
             eventType: eventType as EventType,
             eventInfo,
             hostedBy,

@@ -7,6 +7,7 @@ import { Plus, Calendar, MapPin, Clock, Edit, Trash2 } from 'lucide-react';
 interface Event {
    id: number;
    name: string;
+   eventCodePrefix: string;
    eventType: string;
    eventInfo: string;
    eventDate: string;
@@ -247,7 +248,10 @@ function EventCard({
                            <span>
                               Pickup locations:{' '}
                               <span className="font-medium text-foreground">
-                                 {event.pickupLocations}
+                                 {event.pickupLocations
+                                    .split(',')
+                                    .map((l) => l.trim())
+                                    .join(', ')}
                               </span>
                            </span>
                         )}
@@ -302,6 +306,7 @@ function EventModal({
 }) {
    const [formData, setFormData] = useState({
       name: event?.name || '',
+      eventCodePrefix: event?.eventCodePrefix || '',
       eventType: event?.eventType || 'FOOD_FAIR',
       eventInfo: event?.eventInfo || '',
       eventDate: event?.eventDate
@@ -356,6 +361,28 @@ function EventModal({
                      className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
                      required
                   />
+               </div>
+               <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                     Event Code Prefix *
+                  </label>
+                  <input
+                     type="text"
+                     value={formData.eventCodePrefix}
+                     onChange={(e) =>
+                        setFormData({
+                           ...formData,
+                           eventCodePrefix: e.target.value.toUpperCase(),
+                        })
+                     }
+                     placeholder="e.g. 8888, AUG26, FAIR1"
+                     maxLength={20}
+                     className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground uppercase"
+                     required
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                     Used for order numbers (e.g. 8888-00001)
+                  </p>
                </div>
                <div>
                   <label className="block text-sm font-medium text-foreground mb-1">

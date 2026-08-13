@@ -12,7 +12,11 @@ export const orderService = {
       paymentMode: 'IN_CASH' | 'BANK_TRANSFER',
       pickupLocation: string | undefined,
       customer: { name: string; phone: string },
-      items: OrderItemInput[]
+      items: OrderItemInput[],
+      donation: number = 0,
+      discount: number = 0,
+      receivedFrom?: string,
+      receivedFromOther?: string
    ): Promise<Order> {
       // check if customer exists, if not create a new customer
       let existingCustomer = await customerService.getCustomerByNameAndPhone(
@@ -38,28 +42,21 @@ export const orderService = {
          throw new Error('Pre-order is closed for this event');
       }
 
-      // generate order number (e.g. ORD-20240715-0001)
-      const nzDate = new Intl.DateTimeFormat('en-CA', {
-         timeZone: 'Pacific/Auckland',
-         year: 'numeric',
-         month: '2-digit',
-         day: '2-digit',
-      }).format(new Date()); // "2026-05-26"
-
-      const dateStr = nzDate.replace(/-/g, ''); // "20260526"
+      // generate order number using event code prefix (e.g. 8888-00001)
+      const prefix = event.eventCodePrefix;
 
       const lastOrderNumber =
-         await orderRepository.getMaxOrderNumberForDate(dateStr);
+         await orderRepository.getMaxOrderNumberForPrefix(prefix);
       let orderCount = 0;
       if (lastOrderNumber) {
-         const lastOrderCount = parseInt(lastOrderNumber.split('-')[2] ?? '0');
+         const lastOrderCount = parseInt(lastOrderNumber.split('-')[1] ?? '0');
          orderCount = Number.isNaN(lastOrderCount) ? 0 : lastOrderCount;
       }
 
       // Retry up to 3 times if a unique constraint collision occurs
       let lastError: Error | null = null;
       for (let attempt = 0; attempt < 3; attempt++) {
-         const orderNumber = `ORD-${dateStr}-${String(orderCount + 1).padStart(4, '0')}`;
+         const orderNumber = `${prefix}-${String(orderCount + 1).padStart(5, '0')}`;
          try {
             return await orderRepository.createOrderWithStock(
                orderNumber,
@@ -68,7 +65,11 @@ export const orderService = {
                existingCustomer.id,
                paymentMode,
                pickupLocation,
-               items
+               items,
+               donation,
+               discount,
+               receivedFrom,
+               receivedFromOther
             );
          } catch (err) {
             if (
@@ -115,7 +116,12 @@ export const orderService = {
    async updateOrderByOrderNo(
       orderNumber: string,
       note: string | null,
-      items: OrderItemInput[]
+      items: OrderItemInput[],
+      donation?: number,
+      discount?: number,
+      receivedFrom?: string,
+      receivedFromOther?: string,
+      pickupLocation?: string | null
    ): Promise<Order> {
       const existingOrder =
          await orderRepository.getOrderByOrderNo(orderNumber);
@@ -124,17 +130,15 @@ export const orderService = {
          throw new Error('Order is cancelled');
       if (existingOrder.status === 'COMPLETED')
          throw new Error('Order is completed');
-      const event = await prisma.event.findUnique({
-         where: { id: existingOrder.eventId },
-      });
-      if (event?.preOrderClose && new Date() > event.preOrderClose) {
-         throw new Error('Pre-order is closed for this event');
-      }
 
       return orderRepository.updateOrderByOrderNoWithStock(
          orderNumber,
          note,
-         items
+         items,
+         donation,
+         discount,
+         receivedFrom,
+         receivedFromOther
       );
    },
 

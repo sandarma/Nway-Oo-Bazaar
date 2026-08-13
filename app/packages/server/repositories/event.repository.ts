@@ -3,18 +3,19 @@ import { prisma } from '../prisma';
 
 export const eventRepository = {
    async createEvent(data: Partial<Event>) {
-      // INSERT INTO events (name, eventType, eventInfo, eventDate, location, preOrderClose) VALUES (...)
+      // INSERT INTO events (name, eventCodePrefix, eventType, eventInfo, eventDate, location, preOrderClose) VALUES (...)
       return prisma.event.create({
          data: {
-            name: data.name || '', // Default to an empty string if undefined
+            name: data.name || '',
+            eventCodePrefix: (data as any).eventCodePrefix || 'EVT',
             eventType: (data.eventType as any) || 'FOOD_FAIR',
             eventInfo: data.eventInfo,
             hostedBy: data.hostedBy,
             pickupInfo: data.pickupInfo,
             paymentInfo: data.paymentInfo,
             pickupLocations: (data as any).pickupLocations,
-            eventDate: data.eventDate ? new Date(data.eventDate) : new Date(), // Default to current date if undefined
-            location: data.location || '', // Default to an empty string if undefined
+            eventDate: data.eventDate ? new Date(data.eventDate) : new Date(),
+            location: data.location || '',
             preOrderClose: data.preOrderClose
                ? new Date(data.preOrderClose)
                : undefined,
@@ -56,6 +57,7 @@ export const eventRepository = {
          where: { id: eventid },
          data: {
             name: data.name,
+            eventCodePrefix: (data as any).eventCodePrefix,
             eventType: data.eventType as any,
             eventInfo: data.eventInfo,
             hostedBy: data.hostedBy,

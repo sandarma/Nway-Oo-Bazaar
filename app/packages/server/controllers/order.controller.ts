@@ -17,13 +17,7 @@ const createOrderRequestSchema = z.object({
    pickupLocation: z.string().trim().optional(),
    customer: z.object({
       name: z.string().trim().min(1, 'customer name is required'),
-      phone: z
-         .string()
-         .trim()
-         .min(1, 'customer phone is required')
-         .refine((val) => isValidPhone(val), {
-            message: 'Please enter a valid phone number (e.g. 021 123 456)',
-         }),
+      phone: z.string().trim().optional(),
    }),
    items: z
       .array(
@@ -33,6 +27,10 @@ const createOrderRequestSchema = z.object({
          })
       )
       .min(1, 'At least one item is required in the order'),
+   donation: z.number().nonnegative().optional().default(0),
+   discount: z.number().nonnegative().optional().default(0),
+   receivedFrom: z.string().trim().optional(),
+   receivedFromOther: z.string().trim().optional(),
 });
 
 const updateOrderRequestSchema = z.object({
@@ -45,6 +43,11 @@ const updateOrderRequestSchema = z.object({
       )
       .min(1, 'At least one item is required in the order'),
    note: z.string().nullable().optional(),
+   donation: z.number().nonnegative().optional(),
+   discount: z.number().nonnegative().optional(),
+   receivedFrom: z.string().trim().optional(),
+   receivedFromOther: z.string().trim().optional(),
+   pickupLocation: z.string().trim().nullable().optional(),
 });
 
 export const orderController = {
@@ -57,20 +60,33 @@ export const orderController = {
       }
 
       try {
-         const { note, eventId, paymentMode, pickupLocation, customer, items } =
-            parseResult.data;
+         const {
+            note,
+            eventId,
+            paymentMode,
+            pickupLocation,
+            customer,
+            items,
+            donation,
+            discount,
+            receivedFrom,
+            receivedFromOther,
+         } = parseResult.data;
 
          const order = await orderService.createOrder(
             note ?? null,
             eventId,
             paymentMode as PaymentMode,
             pickupLocation,
-            customer,
-            items
+            { name: customer.name, phone: customer.phone ?? '' },
+            items,
+            donation,
+            discount,
+            receivedFrom,
+            receivedFromOther
          );
 
          return res.status(201).json(order);
-         // res.json({ message: 'order created successfully' });
       } catch (error) {
          // return res.status(500).json({ error: 'Failed to create order' });
          const message =
@@ -148,7 +164,6 @@ export const orderController = {
       if (!parseResult.success) {
          return res.status(400).json({ error: parseResult.error.format() });
       }
-      // Logic to update an order (e.g. change qty, add/remove items, update note)
       try {
          const orderNumber = Array.isArray(req.params.orderNumber)
             ? req.params.orderNumber[0]
@@ -156,17 +171,30 @@ export const orderController = {
          if (!orderNumber) {
             return res.status(400).json({ error: 'Order number is required' });
          }
-         const { items, note } = parseResult.data;
+         const {
+            items,
+            note,
+            donation,
+            discount,
+            receivedFrom,
+            receivedFromOther,
+            pickupLocation,
+         } = parseResult.data;
 
          const updatedOrder = await orderService.updateOrderByOrderNo(
             orderNumber,
             note ?? '',
-            items
+            items,
+            donation,
+            discount,
+            receivedFrom,
+            receivedFromOther,
+            pickupLocation
          );
 
          return res.json(updatedOrder);
-         // res.json({ message: 'order updated successfully' });
       } catch (error) {
+         console.error('updateOrderByOrderNumber error:', error);
          return res.status(500).json({ error: 'Failed to update order' });
       }
    },

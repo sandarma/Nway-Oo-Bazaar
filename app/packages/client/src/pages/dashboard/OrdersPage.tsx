@@ -31,6 +31,11 @@ interface Order {
       | 'CANCELLED';
    total: number;
    note: string | null;
+   donation: number;
+   discount: number;
+   receivedFrom: string | null;
+   receivedFromOther: string | null;
+   pickupLocation: string | null;
    paymentMode: 'IN_CASH' | 'BANK_TRANSFER' | null;
    paymentScreenshotUrl: string | null;
    createdAt: string;
@@ -50,6 +55,7 @@ interface Order {
    event: {
       id: number;
       name: string;
+      preOrderClose: string | null;
    };
 }
 
@@ -166,15 +172,21 @@ export default function OrdersPage() {
                      const res = await api.get(`/export/${eventId}/orders`, {
                         responseType: 'blob',
                      });
+                     // Extract filename from Content-Disposition header
+                     const disposition = res.headers['content-disposition'];
+                     let filename = `orders-${eventId}.csv`;
+                     if (disposition) {
+                        const match = disposition.match(
+                           /filename="?([^";\s]+)"?/
+                        );
+                        if (match) filename = match[1];
+                     }
                      const url = window.URL.createObjectURL(
                         new Blob([res.data])
                      );
                      const link = document.createElement('a');
                      link.href = url;
-                     link.setAttribute(
-                        'download',
-                        `orders-event-${eventId}.csv`
-                     );
+                     link.setAttribute('download', filename);
                      document.body.appendChild(link);
                      link.click();
                      link.remove();
@@ -679,6 +691,15 @@ function OrderEditModal({
    const [loadingMenu, setLoadingMenu] = useState(true);
    const [saving, setSaving] = useState(false);
    const [note, setNote] = useState(order.note || '');
+   const [donation, setDonation] = useState(order.donation || 0);
+   const [discount, setDiscount] = useState(order.discount || 0);
+   const [receivedFrom, setReceivedFrom] = useState(order.receivedFrom || '');
+   const [receivedFromOther, setReceivedFromOther] = useState(
+      order.receivedFromOther || ''
+   );
+   const [pickupLocation, setPickupLocation] = useState(
+      order.pickupLocation || ''
+   );
    const [items, setItems] = useState(
       order.items.map((item) => ({
          menuItemId: item.menuItemId,
@@ -696,10 +717,20 @@ function OrderEditModal({
       unitPrice: item.unitPrice,
    }));
    const originalNote = order.note || '';
+   const originalDonation = order.donation || 0;
+   const originalDiscount = order.discount || 0;
+   const originalReceivedFrom = order.receivedFrom || '';
+   const originalReceivedFromOther = order.receivedFromOther || '';
+   const originalPickupLocation = order.pickupLocation || '';
 
    const handleDiscardChanges = () => {
       setItems(originalItems);
       setNote(originalNote);
+      setDonation(originalDonation);
+      setDiscount(originalDiscount);
+      setReceivedFrom(originalReceivedFrom);
+      setReceivedFromOther(originalReceivedFromOther);
+      setPickupLocation(originalPickupLocation);
       toast('Changes discarded', 'success');
    };
    const [newMenuItemId, setNewMenuItemId] = useState('');
@@ -732,10 +763,11 @@ function OrderEditModal({
       (item) => item.id === Number(newMenuItemId)
    );
 
-   const total = items.reduce(
+   const subtotal = items.reduce(
       (sum, item) => sum + item.unitPrice * item.qty,
       0
    );
+   const total = subtotal + donation - discount;
 
    const updateItemQty = (menuItemId: number, qty: number) => {
       setItems((current) =>
@@ -797,10 +829,28 @@ function OrderEditModal({
 
    const handleSave = async () => {
       if (!order.orderNumber) return;
+
+      // Check if pre-order is closed and confirm
+      if (order.event?.preOrderClose) {
+         const isClosed = new Date() > new Date(order.event.preOrderClose);
+         if (isClosed) {
+            const confirmed = window.confirm(
+               '⚠️ Pre-order for this event has closed.\n\nAre you sure you want to save changes to this order?'
+            );
+            if (!confirmed) return;
+         }
+      }
+
       setSaving(true);
       try {
          const payload = {
             note: note.trim() || null,
+            donation: donation || 0,
+            discount: discount || 0,
+            receivedFrom: receivedFrom || undefined,
+            receivedFromOther:
+               receivedFrom === 'Others' ? receivedFromOther : undefined,
+            pickupLocation: pickupLocation || null,
             items: items.map((item) => ({
                menuItemId: item.menuItemId,
                quantity: item.qty,
@@ -862,6 +912,98 @@ function OrderEditModal({
             </div>
 
             <div className="p-4 space-y-4">
+               {/* Order Received From & Pickup Location */}
+               <div className="grid grid-cols-2 gap-4">
+                  <div>
+                     <label className="block text-sm font-medium text-foreground mb-1">
+                        Order Received From
+                     </label>
+                     <select
+                        value={receivedFrom}
+                        onChange={(e) => {
+                           setReceivedFrom(e.target.value);
+                           if (e.target.value !== 'Others') {
+                              setReceivedFromOther('');
+                           }
+                        }}
+                        className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
+                     >
+                        <option value="">Select...</option>
+                        <option value="NOB">NOB</option>
+                        <option value="Ko ZG">Ko ZG</option>
+                        <option value="Ko Lynn">Ko Lynn</option>
+                        <option value="Others">Others</option>
+                     </select>
+                  </div>
+                  <div>
+                     <label className="block text-sm font-medium text-foreground mb-1">
+                        Pickup Location
+                     </label>
+                     <select
+                        value={pickupLocation}
+                        onChange={(e) => setPickupLocation(e.target.value)}
+                        className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
+                     >
+                        <option value="">Select location</option>
+                        <option value="In Event">In Event</option>
+                        <option value="Downtown CBD">Downtown CBD</option>
+                        <option value="Kelston">Kelston</option>
+                        <option value="Northshore">Northshore</option>
+                        <option value="Hamilton">Hamilton</option>
+                     </select>
+                  </div>
+               </div>
+
+               {receivedFrom === 'Others' && (
+                  <div>
+                     <label className="block text-sm font-medium text-foreground mb-1">
+                        Specify for Others
+                     </label>
+                     <input
+                        type="text"
+                        value={receivedFromOther}
+                        onChange={(e) => setReceivedFromOther(e.target.value)}
+                        placeholder="Enter name or source"
+                        className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
+                     />
+                  </div>
+               )}
+
+               {/* Donation / Discount */}
+               <div className="grid grid-cols-2 gap-4">
+                  <div>
+                     <label className="block text-sm font-medium text-foreground mb-1">
+                        Donation / Delivery ($)
+                     </label>
+                     <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={donation}
+                        onChange={(e) =>
+                           setDonation(parseFloat(e.target.value) || 0)
+                        }
+                        className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
+                     />
+                  </div>
+                  <div>
+                     <label className="block text-sm font-medium text-foreground mb-1">
+                        Discount ($)
+                     </label>
+                     <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={discount}
+                        onChange={(e) =>
+                           setDiscount(parseFloat(e.target.value) || 0)
+                        }
+                        className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
+                     />
+                  </div>
+               </div>
+
+               {/* Note */}
                <div>
                   <label className="block text-sm font-medium text-foreground mb-1">
                      Note
@@ -953,11 +1095,27 @@ function OrderEditModal({
                </div>
 
                <div className="flex items-center justify-between pt-4 border-t border-border">
-                  <div>
-                     <p className="text-sm text-muted-foreground">Total</p>
-                     <p className="text-lg font-semibold text-foreground">
-                        ${total.toFixed(2)}
-                     </p>
+                  <div className="text-sm">
+                     <div className="flex justify-between gap-4 text-muted-foreground">
+                        <span>Subtotal:</span>
+                        <span>${subtotal.toFixed(2)}</span>
+                     </div>
+                     {donation > 0 && (
+                        <div className="flex justify-between gap-4 text-green-600">
+                           <span>Donation / Delivery:</span>
+                           <span>+${donation.toFixed(2)}</span>
+                        </div>
+                     )}
+                     {discount > 0 && (
+                        <div className="flex justify-between gap-4 text-red-600">
+                           <span>Discount:</span>
+                           <span>-${discount.toFixed(2)}</span>
+                        </div>
+                     )}
+                     <div className="flex justify-between gap-4 font-semibold text-foreground mt-1 pt-1 border-t border-border">
+                        <span>Total:</span>
+                        <span>${total.toFixed(2)}</span>
+                     </div>
                   </div>
                   <div className="flex gap-3">
                      <button

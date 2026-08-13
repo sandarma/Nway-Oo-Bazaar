@@ -58,10 +58,17 @@ export default function ExportPage() {
       ? sanitizeFilename(event.name)
       : `event-${eventId}`;
 
-   const downloadCsv = async (url: string, fileName: string) => {
+   const downloadCsv = async (url: string, fallbackName: string) => {
       const response = await api.get(url, {
          responseType: 'blob',
       });
+      // Extract filename from Content-Disposition header
+      const disposition = response.headers['content-disposition'];
+      let fileName = fallbackName;
+      if (disposition) {
+         const match = disposition.match(/filename="?([^";\s]+)"?/);
+         if (match) fileName = match[1];
+      }
       const blobUrl = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = blobUrl;

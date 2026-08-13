@@ -120,7 +120,11 @@ export default function EventDetailPage() {
                )}
                {event.eventType === 'FOOD_FAIR' && event.pickupLocations && (
                   <p className="text-sm text-muted-foreground mt-1">
-                     Pickup locations: {event.pickupLocations}
+                     Pickup locations:{' '}
+                     {event.pickupLocations
+                        .split(',')
+                        .map((l) => l.trim())
+                        .join(', ')}
                   </p>
                )}
             </div>

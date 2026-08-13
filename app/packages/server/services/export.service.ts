@@ -23,9 +23,8 @@ function formatDate(date: Date) {
    return date.toLocaleDateString('en-US');
 }
 
-function inferOrderSource(customerName: string, note: string | null) {
-   const sourceText = `${customerName} ${note ?? ''}`.toUpperCase();
-   if (sourceText.includes('(NOB)') || sourceText.includes('NOB')) {
+function inferOrderSource(receivedFrom?: string | null) {
+   if (receivedFrom === 'NOB') {
       return 'NOB';
    }
    return 'Non-NOB';
@@ -76,9 +75,13 @@ export const exportService = {
             '**Order**',
             '**Source**',
             '**Name**',
+            '**Received From**',
             '**Note**',
             '**Payment Mode**',
             '**Status**',
+            '**Subtotal**',
+            '**Donation / Delivery**',
+            '**Discount**',
             '**Amount**',
             '**Pickup**',
          ],
@@ -88,13 +91,26 @@ export const exportService = {
          const paymentLabel =
             order.paymentMode === 'IN_CASH' ? 'Cash' : 'Bank Transfer';
          const statusLabel = order.status.replace(/_/g, ' ');
+         const source = order.receivedFrom === 'NOB' ? 'NOB' : 'Non-NOB';
+         const receivedFromLabel =
+            order.receivedFrom === 'Others'
+               ? order.receivedFromOther || 'Others'
+               : order.receivedFrom || '';
+         const subtotal = order.items.reduce(
+            (sum: number, item: any) => sum + item.subtotal,
+            0
+         );
          rows.push([
             order.orderNumber,
-            inferOrderSource(order.customer.name, order.note),
+            source,
             order.customer.name,
+            receivedFromLabel,
             order.note || '',
             paymentLabel,
             statusLabel,
+            formatMoney(subtotal),
+            order.donation > 0 ? formatMoney(order.donation) : '',
+            order.discount > 0 ? formatMoney(order.discount) : '',
             formatMoney(order.total),
             order.pickupLocation || 'Event',
          ]);
@@ -132,12 +148,23 @@ export const exportService = {
       ];
 
       sortedOrders.forEach((order) => {
+         const subtotal = order.items.reduce(
+            (sum: number, item: any) => sum + item.subtotal,
+            0
+         );
          rows.push([]);
          rows.push([order.customer.name]);
          rows.push(['Order No', order.orderNumber]);
          rows.push(['Pickup', order.pickupLocation || 'Event']);
          if (order.note) {
             rows.push(['Note', order.note]);
+         }
+         if (order.receivedFrom) {
+            const receivedFromLabel =
+               order.receivedFrom === 'Others'
+                  ? order.receivedFromOther || 'Others'
+                  : order.receivedFrom;
+            rows.push(['Received From', receivedFromLabel]);
          }
          rows.push(['', 'Menu', 'Unit Price', 'Qty', 'Subtotal']);
 
@@ -151,6 +178,25 @@ export const exportService = {
             ]);
          });
 
+         rows.push(['', 'Subtotal →', '', '', formatMoney(subtotal)]);
+         if (order.donation > 0) {
+            rows.push([
+               '',
+               'Donation / Delivery →',
+               '',
+               '',
+               `+${formatMoney(order.donation)}`,
+            ]);
+         }
+         if (order.discount > 0) {
+            rows.push([
+               '',
+               'Discount →',
+               '',
+               '',
+               `-${formatMoney(order.discount)}`,
+            ]);
+         }
          rows.push(['', 'Total →', '', '', formatMoney(order.total)]);
       });
 
@@ -255,8 +301,12 @@ export const exportService = {
             '**Phone**',
             '**Items Ordered**',
             '**Note**',
+            '**Received From**',
+            '**Donation / Delivery**',
+            '**Discount**',
             '**Payment Mode**',
             '**Status**',
+            '**Subtotal**',
             '**Amount**',
             '**Pickup**',
          ],
@@ -269,6 +319,14 @@ export const exportService = {
          const itemsList = order.items
             .map((item) => `${item.menuItem.name} x${item.qty}`)
             .join('; ');
+         const receivedFromLabel =
+            order.receivedFrom === 'Others'
+               ? order.receivedFromOther || 'Others'
+               : order.receivedFrom || '';
+         const subtotal = order.items.reduce(
+            (sum: number, item: any) => sum + item.subtotal,
+            0
+         );
 
          rows.push([
             order.orderNumber,
@@ -276,8 +334,12 @@ export const exportService = {
             order.customer.phone,
             itemsList,
             order.note || '',
+            receivedFromLabel,
+            order.donation > 0 ? formatMoney(order.donation) : '',
+            order.discount > 0 ? formatMoney(order.discount) : '',
             paymentLabel,
             statusLabel,
+            formatMoney(subtotal),
             formatMoney(order.total),
             order.pickupLocation || 'Event',
          ]);

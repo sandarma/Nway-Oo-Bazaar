@@ -24,7 +24,7 @@ function findPromptsDir(): string {
       }
    }
    // Fallback: return first candidate (will error with clear message)
-   return candidates[0];
+   return candidates[0] ?? '';
 }
 const promptsDir = findPromptsDir();
 

@@ -83,7 +83,9 @@ export const invitationController = {
 
    async checkStatus(req: Request, res: Response) {
       try {
-         const code = req.params.code;
+         const code = Array.isArray(req.params.code)
+            ? req.params.code[0]
+            : req.params.code;
          if (!code) {
             return res
                .status(400)

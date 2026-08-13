@@ -11,12 +11,13 @@ function sanitizeFilename(name: string): string {
       .replace(/^-|-$/g, '');
 }
 
-async function getEventName(eventId: number): Promise<string> {
+async function getEventFilePrefix(eventId: number): Promise<string> {
    const event = await prisma.event.findUnique({
       where: { id: eventId },
-      select: { name: true },
+      select: { eventCodePrefix: true, name: true },
    });
-   return event ? sanitizeFilename(event.name) : `event-${eventId}`;
+   if (!event) return `event-${eventId}`;
+   return event.eventCodePrefix || sanitizeFilename(event.name);
 }
 
 export const exportController = {
@@ -37,11 +38,11 @@ export const exportController = {
             pickupLocation
          );
 
-         const eventName = await getEventName(eventId);
+         const eventPrefix = await getEventFilePrefix(eventId);
          res.setHeader('Content-Type', 'text/csv');
          res.setHeader(
             'Content-Disposition',
-            `attachment; filename="food-order-by-user-list-${eventName}.csv"`
+            `attachment; filename="food-order-by-user-list-${eventPrefix}.csv"`
          );
          return res.send(csv);
       } catch (error) {
@@ -59,11 +60,11 @@ export const exportController = {
 
          const csv = await exportService.exportPrintOutListToCSV(eventId);
 
-         const eventName = await getEventName(eventId);
+         const eventPrefix = await getEventFilePrefix(eventId);
          res.setHeader('Content-Type', 'text/csv');
          res.setHeader(
             'Content-Disposition',
-            `attachment; filename="print-out-list-${eventName}.csv"`
+            `attachment; filename="print-out-list-${eventPrefix}.csv"`
          );
          return res.send(csv);
       } catch (error) {
@@ -82,11 +83,11 @@ export const exportController = {
          const csv =
             await exportService.exportFoodOrdersBySellerListToCSV(eventId);
 
-         const eventName = await getEventName(eventId);
+         const eventPrefix = await getEventFilePrefix(eventId);
          res.setHeader('Content-Type', 'text/csv');
          res.setHeader(
             'Content-Disposition',
-            `attachment; filename="food-order-by-seller-list-${eventName}.csv"`
+            `attachment; filename="food-order-by-seller-list-${eventPrefix}.csv"`
          );
          return res.send(csv);
       } catch (error) {
@@ -104,11 +105,11 @@ export const exportController = {
 
          const csv = await exportService.exportOrdersDetailedToCSV(eventId);
 
-         const eventName = await getEventName(eventId);
+         const eventPrefix = await getEventFilePrefix(eventId);
          res.setHeader('Content-Type', 'text/csv');
          res.setHeader(
             'Content-Disposition',
-            `attachment; filename="orders-detailed-${eventName}.csv"`
+            `attachment; filename="orders-${eventPrefix}.csv"`
          );
          return res.send(csv);
       } catch (error) {
@@ -126,11 +127,11 @@ export const exportController = {
 
          const csv = await exportService.exportMenuToCSV(eventId);
 
-         const eventName = await getEventName(eventId);
+         const eventPrefix = await getEventFilePrefix(eventId);
          res.setHeader('Content-Type', 'text/csv');
          res.setHeader(
             'Content-Disposition',
-            `attachment; filename="menu-${eventName}.csv"`
+            `attachment; filename="menu-${eventPrefix}.csv"`
          );
          return res.send(csv);
       } catch (error) {
