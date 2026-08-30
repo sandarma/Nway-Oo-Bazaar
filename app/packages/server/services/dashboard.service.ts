@@ -47,4 +47,8 @@ export const dashboardService = {
    async getAnalytics(eventId: number) {
       return dashboardRepository.getAnalyticsByEventId(eventId);
    },
+
+   async getTopSellingFromPreviousEvents(eventId: number) {
+      return dashboardRepository.getTopSellingFromPreviousEvents(eventId);
+   },
 };

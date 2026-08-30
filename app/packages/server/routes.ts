@@ -133,6 +133,13 @@ router.get(
    dashboardController.getAnalytics
 );
 
+router.get(
+   '/api/dashboard/:eventId/top-selling-previous',
+   authenticate,
+   requireRole('ADMIN', 'ORGANIZER'),
+   dashboardController.getTopSellingFromPreviousEvents
+);
+
 // ─── Export (protected) ──────────────────────────────────────────────────────────
 
 router.get(

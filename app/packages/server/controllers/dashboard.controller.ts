@@ -115,4 +115,20 @@ export const dashboardController = {
          return res.status(500).json({ error: 'Internal server error' });
       }
    },
+
+   async getTopSellingFromPreviousEvents(req: Request, res: Response) {
+      try {
+         const eventId = Number(req.params.eventId);
+         if (isNaN(eventId)) {
+            return res.status(400).json({ error: 'Invalid event ID' });
+         }
+
+         const topSelling =
+            await dashboardService.getTopSellingFromPreviousEvents(eventId);
+         return res.json({ topSelling });
+      } catch (error) {
+         console.error('Failed to get top selling items:', error);
+         return res.status(500).json({ error: 'Internal server error' });
+      }
+   },
 };

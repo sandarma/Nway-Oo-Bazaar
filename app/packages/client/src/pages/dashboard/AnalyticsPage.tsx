@@ -204,40 +204,6 @@ export default function AnalyticsPage() {
                      )}
                   </div>
 
-                  {/* Top Selling Items */}
-                  <div className="p-6 bg-card border border-border rounded-lg">
-                     <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-                        <Package className="w-5 h-5" />
-                        Top Selling Items
-                     </h2>
-                     {analytics.topSellingItems.length === 0 ? (
-                        <p className="text-muted-foreground text-center py-8">
-                           No items sold
-                        </p>
-                     ) : (
-                        <div className="space-y-2">
-                           {analytics.topSellingItems.map((item, index) => (
-                              <div
-                                 key={item.name}
-                                 className="flex items-center justify-between"
-                              >
-                                 <div className="flex items-center gap-2">
-                                    <span className="text-sm font-medium text-muted-foreground w-6">
-                                       #{index + 1}
-                                    </span>
-                                    <span className="text-sm text-foreground">
-                                       {item.name}
-                                    </span>
-                                 </div>
-                                 <span className="text-sm font-medium text-foreground">
-                                    {item.qty} sold
-                                 </span>
-                              </div>
-                           ))}
-                        </div>
-                     )}
-                  </div>
-
                   {/* Items Sold Breakdown */}
                   <div className="p-6 bg-card border border-border rounded-lg">
                      <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">

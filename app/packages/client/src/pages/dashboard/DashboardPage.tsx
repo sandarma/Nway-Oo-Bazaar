@@ -8,6 +8,7 @@ import {
    Clock,
    Utensils,
    Download,
+   TrendingUp,
 } from 'lucide-react';
 
 interface Event {
@@ -32,6 +33,10 @@ export default function DashboardPage() {
    const [stats, setStats] = useState<Stats | null>(null);
    const [loading, setLoading] = useState(true);
    const [statsLoading, setStatsLoading] = useState(false);
+   const [topSelling, setTopSelling] = useState<
+      { name: string; qty: number }[]
+   >([]);
+   const [topSellingLoading, setTopSellingLoading] = useState(false);
 
    useEffect(() => {
       fetchEvents();
@@ -40,6 +45,7 @@ export default function DashboardPage() {
    useEffect(() => {
       if (selectedEvent) {
          fetchStats(selectedEvent.id);
+         fetchTopSelling(selectedEvent.id);
       }
    }, [selectedEvent]);
 
@@ -66,6 +72,20 @@ export default function DashboardPage() {
          console.error('Failed to fetch stats:', error);
       } finally {
          setStatsLoading(false);
+      }
+   };
+
+   const fetchTopSelling = async (eventId: number) => {
+      setTopSellingLoading(true);
+      try {
+         const response = await api.get(
+            `/dashboard/${eventId}/top-selling-previous`
+         );
+         setTopSelling(response.data.topSelling);
+      } catch (error) {
+         console.error('Failed to fetch top selling:', error);
+      } finally {
+         setTopSellingLoading(false);
       }
    };
 
@@ -203,6 +223,57 @@ export default function DashboardPage() {
                      Download CSV files
                   </p>
                </Link>
+            </div>
+         )}
+
+         {/* Top Selling Items from Previous Events */}
+         {selectedEvent && (
+            <div className="p-6 bg-card border border-border rounded-lg">
+               <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5" />
+                  Top 10 Selling Items from Previous Events
+               </h2>
+               <p className="text-sm text-muted-foreground mb-4">
+                  Items that sold the most in events before{' '}
+                  <span className="font-medium text-foreground">
+                     {selectedEvent.name}
+                  </span>
+               </p>
+               {topSellingLoading ? (
+                  <div className="space-y-2">
+                     {[...Array(5)].map((_, i) => (
+                        <div
+                           key={i}
+                           className="h-8 bg-muted rounded animate-pulse"
+                        />
+                     ))}
+                  </div>
+               ) : topSelling.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">
+                     No data from previous events yet
+                  </p>
+               ) : (
+                  <div className="space-y-2">
+                     {topSelling.map((item, index) => (
+                        <div
+                           key={item.name}
+                           className="flex items-center justify-between py-2 border-b border-border last:border-0"
+                        >
+                           <div className="flex items-center gap-3">
+                              <span className="text-sm font-medium text-muted-foreground w-6">
+                                 {index + 1}.
+                              </span>
+                              <span className="text-sm text-foreground">
+                                 {item.name}
+                              </span>
+                           </div>
+                           <span className="text-sm font-medium text-foreground">
+                              {item.qty} sold
+                           </span>
+                        </div>
+                     ))}
+                  </div>
+               )}
             </div>
          )}
       </div>

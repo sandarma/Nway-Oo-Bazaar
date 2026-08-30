@@ -223,4 +223,54 @@ export const dashboardRepository = {
          topSellingItems,
       };
    },
+
+   async getTopSellingFromPreviousEvents(currentEventId: number) {
+      // Get the current event's date
+      const currentEvent = await prisma.event.findUnique({
+         where: { id: currentEventId },
+         select: { eventDate: true },
+      });
+
+      if (!currentEvent) return [];
+
+      // Find all events that happened before the current event
+      const previousEvents = await prisma.event.findMany({
+         where: {
+            eventDate: { lt: currentEvent.eventDate },
+         },
+         select: { id: true },
+      });
+
+      if (previousEvents.length === 0) return [];
+
+      const previousEventIds = previousEvents.map((e) => e.id);
+
+      // Get all order items from previous events (excluding cancelled orders)
+      const orderItems = await prisma.orderItem.findMany({
+         where: {
+            order: {
+               eventId: { in: previousEventIds },
+               status: { not: 'CANCELLED' },
+            },
+         },
+         include: {
+            menuItem: {
+               select: { name: true },
+            },
+         },
+      });
+
+      // Aggregate by item name
+      const itemsSold: Record<string, number> = {};
+      for (const item of orderItems) {
+         const name = item.menuItem.name;
+         itemsSold[name] = (itemsSold[name] || 0) + item.qty;
+      }
+
+      // Return top 10
+      return Object.entries(itemsSold)
+         .sort(([, a], [, b]) => b - a)
+         .slice(0, 10)
+         .map(([name, qty]) => ({ name, qty }));
+   },
 };
