@@ -6,6 +6,23 @@ A full-stack web-based preorder management platform for community fundraising ev
 
 ---
 
+## Project Timeline
+
+| Phase | Duration | Features |
+|-------|----------|----------|
+| **Phase 1** | Jul 31 - Aug 31, 2026 (5 weeks) | Core platform: Auth, Events, Menu, Orders, Exports, Dashboard |
+| **Phase 2** | Planned | AI Chatbot, Real-time Notifications, Advanced Analytics |
+
+### Development Progress
+
+```
+Jul 2026  ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░  Setup & Auth
+Aug 2026  ████████████████████████████████  Core Features
+Sep 2026  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  Phase 2 Planning
+```
+
+---
+
 ## Screenshots
 
 | Homepage                              | Menu Ordering                         | Order Tracking                              |
