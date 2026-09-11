@@ -241,21 +241,22 @@ export const menuItemRepository = {
                });
             }
 
-            // Step 7: Reorder all items (single query per item, but only remaining)
+            // Step 7: Reorder all items using single raw query
             const remainingItems = await tx.menuItem.findMany({
                where: { eventId },
                orderBy: [{ id: 'asc' }],
+               select: { id: true },
             });
 
-            // Batch reorder updates
-            await Promise.all(
-               remainingItems.map((item, index) =>
-                  tx.menuItem.update({
-                     where: { id: item.id },
-                     data: { orderIndex: index },
-                  })
-               )
-            );
+            if (remainingItems.length > 0) {
+               const cases = remainingItems
+                  .map((item, index) => `WHEN id = ${item.id} THEN ${index}`)
+                  .join(' ');
+               const ids = remainingItems.map((item) => item.id).join(',');
+               await tx.$executeRawUnsafe(
+                  `UPDATE menu_items SET orderIndex = CASE ${cases} END WHERE id IN (${ids})`
+               );
+            }
 
             // Step 8: Fetch final result (single query)
             const menuItems = await tx.menuItem.findMany({
@@ -295,7 +296,7 @@ export const menuItemRepository = {
                menuItems,
             };
          },
-         { timeout: 8000 } // 8 seconds - Netlify free plan has 10s limit
+         { timeout: 10000 } // 10 seconds - matches Netlify free plan limit
       );
    },
 
