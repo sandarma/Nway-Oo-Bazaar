@@ -73,8 +73,16 @@ export const menuItemRepository = {
          reason: string;
       }> = [];
 
+      const successfulChanges: Array<{
+         flag: 'ADD' | 'UPDATE' | 'REMOVE';
+         name: string;
+         previous?: MenuItem | null;
+         next?: MenuItem | null;
+      }> = [];
+
       return prisma.$transaction(
          async (tx) => {
+            // Step 1: Fetch all current items once (single query)
             const currentItems = await tx.menuItem.findMany({
                where: { eventId },
                orderBy: [{ orderIndex: 'asc' }, { id: 'asc' }],
@@ -87,154 +95,159 @@ export const menuItemRepository = {
                ])
             );
 
-            const successfulChanges: Array<{
-               flag: 'ADD' | 'UPDATE' | 'REMOVE';
-               name: string;
-               previous?: MenuItem | null;
-               next?: MenuItem | null;
-            }> = [];
+            // Step 2: Separate items by operation type
+            const itemsToAdd: typeof items = [];
+            const itemsToUpdate: typeof items = [];
+            const itemsToRemove: typeof items = [];
 
             for (const rawItem of items) {
-               try {
-                  const name = rawItem.name.trim();
-                  const lookupKey = name.toLowerCase();
-                  const existing = currentByName.get(lookupKey);
+               const name = rawItem.name.trim();
+               const lookupKey = name.toLowerCase();
+               const existing = currentByName.get(lookupKey);
 
-                  if (rawItem.flag === 'ADD') {
-                     if (existing) {
-                        // throw new Error(`Menu item "${name}" already exists`);
-                        failedItems.push({
-                           flag: 'ADD',
-                           name,
-                           reason: 'Menu item already exists.',
-                        });
-
-                        continue;
-                     }
-
-                     const created = await tx.menuItem.create({
-                        data: {
-                           eventId,
-                           name,
-                           chef: rawItem.chef?.trim() || null,
-                           category: rawItem.category,
-                           price: rawItem.price,
-                           stockQty: rawItem.stockQty,
-                           isSoldOut: rawItem.stockQty <= 0,
-                           orderIndex: currentItems.length,
-                           createdAt: new Date(),
-                        },
-                     });
-
-                     currentItems.push(created);
-                     currentByName.set(lookupKey, created);
-                     successfulChanges.push({
+               if (rawItem.flag === 'ADD') {
+                  if (existing) {
+                     failedItems.push({
                         flag: 'ADD',
                         name,
-                        next: created,
+                        reason: 'Menu item already exists.',
                      });
-                     continue;
+                  } else {
+                     itemsToAdd.push(rawItem);
                   }
-
+               } else if (rawItem.flag === 'UPDATE') {
                   if (!existing) {
-                     // throw new Error(`Menu item "${name}" not found`);
                      failedItems.push({
-                        flag: rawItem.flag,
+                        flag: 'UPDATE',
                         name,
                         reason: 'Menu item not found.',
                      });
-
-                     continue;
+                  } else {
+                     itemsToUpdate.push(rawItem);
                   }
-
-                  if (rawItem.flag === 'UPDATE') {
-                     const updated = await tx.menuItem.update({
-                        where: { id: existing.id },
-                        data: {
-                           name,
-                           chef: rawItem.chef?.trim() || null,
-                           category: rawItem.category,
-                           price: rawItem.price,
-                           stockQty: rawItem.stockQty,
-                           isSoldOut: rawItem.stockQty <= 0,
-                        },
-                     });
-
-                     currentByName.set(lookupKey, updated);
-                     successfulChanges.push({
-                        flag: 'UPDATE',
-                        name,
-                        previous: existing,
-                        next: updated,
-                     });
-                     continue;
-                  }
-
-                  // Check whether this menu item has been ordered
-                  const existingOrder = await tx.orderItem.findFirst({
-                     where: {
-                        menuItemId: existing.id,
-                     },
-                     // select: {
-                     //    id: true,
-                     // },
-                     include: {
-                        order: {
-                           select: {
-                              orderNumber: true,
-                           },
-                        },
-                     },
-                  });
-
-                  if (existingOrder) {
+               } else if (rawItem.flag === 'REMOVE') {
+                  if (!existing) {
                      failedItems.push({
                         flag: 'REMOVE',
                         name,
-                        reason: `Cannot delete because it is used in order ${existingOrder.order.orderNumber}.`,
+                        reason: 'Menu item not found.',
                      });
-
-                     continue;
+                  } else {
+                     itemsToRemove.push(rawItem);
                   }
+               }
+            }
 
-                  // Safe to delete
-                  await tx.menuItem.delete({
-                     where: { id: existing.id },
+            // Step 3: Check which items to remove have existing orders (batch query)
+            const removeItemIds = itemsToRemove
+               .map(
+                  (item) =>
+                     currentByName.get(item.name.trim().toLowerCase())?.id
+               )
+               .filter((id): id is number => id !== undefined);
+
+            const orderItems = await tx.orderItem.findMany({
+               where: { menuItemId: { in: removeItemIds } },
+               select: {
+                  menuItemId: true,
+                  order: { select: { orderNumber: true } },
+               },
+            });
+
+            const orderedItemIds = new Map(
+               orderItems.map((oi) => [oi.menuItemId, oi.order.orderNumber])
+            );
+
+            // Separate removable vs blocked items
+            const canRemove: number[] = [];
+            for (const rawItem of itemsToRemove) {
+               const name = rawItem.name.trim();
+               const existing = currentByName.get(name.toLowerCase());
+               if (!existing) continue;
+
+               const orderNumber = orderedItemIds.get(existing.id);
+               if (orderNumber) {
+                  failedItems.push({
+                     flag: 'REMOVE',
+                     name,
+                     reason: `Cannot delete because it is used in order ${orderNumber}.`,
                   });
-
-                  currentByName.delete(lookupKey);
-
+               } else {
+                  canRemove.push(existing.id);
                   successfulChanges.push({
                      flag: 'REMOVE',
                      name,
                      previous: existing,
                   });
-
-                  const index = currentItems.findIndex(
-                     (item) => item.id === existing.id
-                  );
-
-                  if (index >= 0) {
-                     currentItems.splice(index, 1);
-                  }
-               } catch (error) {
-                  failedItems.push({
-                     flag: rawItem.flag,
-                     name: rawItem.name,
-                     reason:
-                        error instanceof Error
-                           ? error.message
-                           : 'Unexpected error.',
-                  });
-                  continue;
                }
             }
 
+            // Step 4: Bulk delete (1 query)
+            if (canRemove.length > 0) {
+               await tx.menuItem.deleteMany({
+                  where: { id: { in: canRemove } },
+               });
+            }
+
+            // Step 5: Bulk create (1 query)
+            const currentCount = currentItems.length;
+            if (itemsToAdd.length > 0) {
+               const now = new Date();
+               await tx.menuItem.createMany({
+                  data: itemsToAdd.map((rawItem, idx) => ({
+                     eventId,
+                     name: rawItem.name.trim(),
+                     chef: rawItem.chef?.trim() || null,
+                     category: rawItem.category,
+                     price: rawItem.price,
+                     stockQty: rawItem.stockQty,
+                     isSoldOut: rawItem.stockQty <= 0,
+                     orderIndex: currentCount + idx,
+                     createdAt: now,
+                  })),
+               });
+
+               // Track successful adds
+               for (const rawItem of itemsToAdd) {
+                  successfulChanges.push({
+                     flag: 'ADD',
+                     name: rawItem.name.trim(),
+                  });
+               }
+            }
+
+            // Step 6: Bulk update (individual queries needed for tracking)
+            for (const rawItem of itemsToUpdate) {
+               const name = rawItem.name.trim();
+               const existing = currentByName.get(name.toLowerCase());
+               if (!existing) continue;
+
+               await tx.menuItem.update({
+                  where: { id: existing.id },
+                  data: {
+                     name,
+                     chef: rawItem.chef?.trim() || null,
+                     category: rawItem.category,
+                     price: rawItem.price,
+                     stockQty: rawItem.stockQty,
+                     isSoldOut: rawItem.stockQty <= 0,
+                  },
+               });
+
+               successfulChanges.push({
+                  flag: 'UPDATE',
+                  name,
+                  previous: existing,
+               });
+            }
+
+            // Step 7: Reorder all items (single query per item, but only remaining)
             const remainingItems = await tx.menuItem.findMany({
                where: { eventId },
-               orderBy: [{ orderIndex: 'asc' }, { id: 'asc' }],
+               orderBy: [{ id: 'asc' }],
             });
 
+            // Batch reorder updates
             await Promise.all(
                remainingItems.map((item, index) =>
                   tx.menuItem.update({
@@ -244,6 +257,7 @@ export const menuItemRepository = {
                )
             );
 
+            // Step 8: Fetch final result (single query)
             const menuItems = await tx.menuItem.findMany({
                where: { eventId },
                orderBy: [{ orderIndex: 'asc' }, { id: 'asc' }],
@@ -281,7 +295,7 @@ export const menuItemRepository = {
                menuItems,
             };
          },
-         { timeout: 30000 }
+         { timeout: 8000 } // 8 seconds - Netlify free plan has 10s limit
       );
    },
 
