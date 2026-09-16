@@ -121,7 +121,10 @@ export const orderService = {
       discount?: number,
       receivedFrom?: string,
       receivedFromOther?: string,
-      pickupLocation?: string | null
+      pickupLocation?: string | null,
+      paymentMode?: 'IN_CASH' | 'BANK_TRANSFER',
+      customerName?: string,
+      customerPhone?: string
    ): Promise<Order> {
       const existingOrder =
          await orderRepository.getOrderByOrderNo(orderNumber);
@@ -138,7 +141,11 @@ export const orderService = {
          donation,
          discount,
          receivedFrom,
-         receivedFromOther
+         receivedFromOther,
+         pickupLocation,
+         paymentMode,
+         customerName,
+         customerPhone
       );
    },
 

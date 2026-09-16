@@ -112,7 +112,10 @@ export const orderRepository = {
       discount?: number,
       receivedFrom?: string,
       receivedFromOther?: string,
-      pickupLocation?: string | null
+      pickupLocation?: string | null,
+      paymentMode?: 'IN_CASH' | 'BANK_TRANSFER',
+      customerName?: string,
+      customerPhone?: string
    ): Promise<Order> {
       return prisma.$transaction(
          async (tx) => {
@@ -210,6 +213,19 @@ export const orderRepository = {
                where: { orderId: existingOrder.id },
             });
 
+            // Update customer info if provided
+            if (customerName !== undefined || customerPhone !== undefined) {
+               const customerUpdate: Record<string, string> = {};
+               if (customerName !== undefined)
+                  customerUpdate.name = customerName;
+               if (customerPhone !== undefined)
+                  customerUpdate.phone = customerPhone;
+               await tx.customer.update({
+                  where: { id: existingOrder.customerId },
+                  data: customerUpdate,
+               });
+            }
+
             return tx.order.update({
                where: { id: existingOrder.id },
                data: {
@@ -223,6 +239,7 @@ export const orderRepository = {
                      pickupLocation !== undefined
                         ? pickupLocation
                         : existingOrder.pickupLocation,
+                  paymentMode: paymentMode ?? existingOrder.paymentMode,
                   total,
                   items: {
                      create: pricedItems.map((item) => ({

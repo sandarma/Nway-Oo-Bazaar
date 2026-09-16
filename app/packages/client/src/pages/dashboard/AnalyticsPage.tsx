@@ -9,6 +9,11 @@ interface Analytics {
    itemsSold: Record<string, number>;
    statusDistribution: Record<string, number>;
    topSellingItems: { name: string; qty: number }[];
+   soldOutItems: {
+      name: string;
+      stockQty: number;
+      qtySold: number;
+   }[];
 }
 
 export default function AnalyticsPage() {
@@ -244,6 +249,42 @@ export default function AnalyticsPage() {
                                     </div>
                                  </div>
                               ))}
+                        </div>
+                     )}
+                  </div>
+
+                  {/* Sold Out Items */}
+                  <div className="p-6 bg-card border border-border rounded-lg">
+                     <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                        <span className="text-red-500">🚫</span>
+                        Sold Out Items
+                     </h2>
+                     {analytics.soldOutItems.length === 0 ? (
+                        <p className="text-muted-foreground text-center py-8">
+                           No sold out items
+                        </p>
+                     ) : (
+                        <div className="space-y-2">
+                           {analytics.soldOutItems.map((item) => (
+                              <div
+                                 key={item.name}
+                                 className="flex items-center justify-between"
+                              >
+                                 <div>
+                                    <span className="text-sm text-foreground">
+                                       {item.name}
+                                    </span>
+                                 </div>
+                                 <div className="flex items-center gap-3 text-sm">
+                                    <span className="text-muted-foreground">
+                                       Sold: {item.qtySold}
+                                    </span>
+                                    <span className="text-muted-foreground">
+                                       Stock: {item.stockQty}
+                                    </span>
+                                 </div>
+                              </div>
+                           ))}
                         </div>
                      )}
                   </div>

@@ -69,6 +69,9 @@ export default function MenuOrderingPage() {
    const [phoneError, setPhoneError] = useState('');
 
    const isPhoneValid = (value: string) => {
+      // Accept email addresses
+      if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return true;
+      // Accept phone numbers (7-15 digits)
       const digits = value.replace(/[\s\-().]/g, '');
       return (
          digits.length >= 7 && digits.length <= 15 && /^\+?\d+$/.test(digits)

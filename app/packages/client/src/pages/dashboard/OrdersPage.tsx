@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import api from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
@@ -113,6 +113,11 @@ export default function OrdersPage() {
          isMounted = false;
       };
    }, [eventId, status, search, page]);
+
+   // Auto-scroll to top when page changes
+   useEffect(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+   }, [page]);
 
    const handleStatusUpdate = async (
       orderId: number,
@@ -700,6 +705,11 @@ function OrderEditModal({
    const [pickupLocation, setPickupLocation] = useState(
       order.pickupLocation || ''
    );
+   const [paymentMode, setPaymentMode] = useState<
+      'IN_CASH' | 'BANK_TRANSFER' | ''
+   >(order.paymentMode || '');
+   const [customerName, setCustomerName] = useState(order.customer.name);
+   const [customerPhone, setCustomerPhone] = useState(order.customer.phone);
    const [items, setItems] = useState(
       order.items.map((item) => ({
          menuItemId: item.menuItemId,
@@ -851,6 +861,9 @@ function OrderEditModal({
             receivedFromOther:
                receivedFrom === 'Others' ? receivedFromOther : undefined,
             pickupLocation: pickupLocation || null,
+            paymentMode: paymentMode || undefined,
+            customerName: customerName.trim() || undefined,
+            customerPhone: customerPhone.trim() || undefined,
             items: items.map((item) => ({
                menuItemId: item.menuItemId,
                quantity: item.qty,
@@ -912,6 +925,32 @@ function OrderEditModal({
             </div>
 
             <div className="p-4 space-y-4">
+               {/* Customer Name & Contact */}
+               <div className="grid grid-cols-2 gap-4">
+                  <div>
+                     <label className="block text-sm font-medium text-foreground mb-1">
+                        Customer Name
+                     </label>
+                     <input
+                        type="text"
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
+                     />
+                  </div>
+                  <div>
+                     <label className="block text-sm font-medium text-foreground mb-1">
+                        Contact Phone / Email
+                     </label>
+                     <input
+                        type="text"
+                        value={customerPhone}
+                        onChange={(e) => setCustomerPhone(e.target.value)}
+                        className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
+                     />
+                  </div>
+               </div>
+
                {/* Order Received From & Pickup Location */}
                <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -935,6 +974,25 @@ function OrderEditModal({
                         <option value="Others">Others</option>
                      </select>
                   </div>
+                  {receivedFrom === 'Others' && (
+                     <div>
+                        <label className="block text-sm font-medium text-foreground mb-1">
+                           Specify for Others
+                        </label>
+                        <input
+                           type="text"
+                           value={receivedFromOther}
+                           onChange={(e) =>
+                              setReceivedFromOther(e.target.value)
+                           }
+                           placeholder="Enter name or source"
+                           className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
+                        />
+                     </div>
+                  )}
+               </div>
+
+               <div className="grid grid-cols-2 gap-4">
                   <div>
                      <label className="block text-sm font-medium text-foreground mb-1">
                         Pickup Location
@@ -952,22 +1010,26 @@ function OrderEditModal({
                         <option value="Hamilton">Hamilton</option>
                      </select>
                   </div>
-               </div>
-
-               {receivedFrom === 'Others' && (
+                  {/* Payment Mode */}
                   <div>
                      <label className="block text-sm font-medium text-foreground mb-1">
-                        Specify for Others
+                        Payment Mode
                      </label>
-                     <input
-                        type="text"
-                        value={receivedFromOther}
-                        onChange={(e) => setReceivedFromOther(e.target.value)}
-                        placeholder="Enter name or source"
+                     <select
+                        value={paymentMode}
+                        onChange={(e) =>
+                           setPaymentMode(
+                              e.target.value as 'IN_CASH' | 'BANK_TRANSFER' | ''
+                           )
+                        }
                         className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
-                     />
+                     >
+                        <option value="">Select payment mode</option>
+                        <option value="IN_CASH">Cash</option>
+                        <option value="BANK_TRANSFER">Bank Transfer</option>
+                     </select>
                   </div>
-               )}
+               </div>
 
                {/* Donation / Discount */}
                <div className="grid grid-cols-2 gap-4">
