@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import api from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
@@ -113,6 +113,11 @@ export default function OrdersPage() {
          isMounted = false;
       };
    }, [eventId, status, search, page]);
+
+   // Auto-scroll to top when page changes
+   useEffect(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+   }, [page]);
 
    const handleStatusUpdate = async (
       orderId: number,
@@ -700,6 +705,9 @@ function OrderEditModal({
    const [pickupLocation, setPickupLocation] = useState(
       order.pickupLocation || ''
    );
+   const [paymentMode, setPaymentMode] = useState<
+      'IN_CASH' | 'BANK_TRANSFER' | ''
+   >(order.paymentMode || '');
    const [items, setItems] = useState(
       order.items.map((item) => ({
          menuItemId: item.menuItemId,
@@ -851,6 +859,7 @@ function OrderEditModal({
             receivedFromOther:
                receivedFrom === 'Others' ? receivedFromOther : undefined,
             pickupLocation: pickupLocation || null,
+            paymentMode: paymentMode || undefined,
             items: items.map((item) => ({
                menuItemId: item.menuItemId,
                quantity: item.qty,
@@ -952,6 +961,26 @@ function OrderEditModal({
                         <option value="Hamilton">Hamilton</option>
                      </select>
                   </div>
+               </div>
+
+               {/* Payment Mode */}
+               <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                     Payment Mode
+                  </label>
+                  <select
+                     value={paymentMode}
+                     onChange={(e) =>
+                        setPaymentMode(
+                           e.target.value as 'IN_CASH' | 'BANK_TRANSFER' | ''
+                        )
+                     }
+                     className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
+                  >
+                     <option value="">Select payment mode</option>
+                     <option value="IN_CASH">Cash</option>
+                     <option value="BANK_TRANSFER">Bank Transfer</option>
+                  </select>
                </div>
 
                {receivedFrom === 'Others' && (

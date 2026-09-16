@@ -20,7 +20,7 @@ function formatMoney(amount: number) {
 }
 
 function formatDate(date: Date) {
-   return date.toLocaleDateString('en-US');
+   return date.toLocaleDateString('en-NZ', { timeZone: 'Pacific/Auckland' });
 }
 
 function inferOrderSource(receivedFrom?: string | null) {

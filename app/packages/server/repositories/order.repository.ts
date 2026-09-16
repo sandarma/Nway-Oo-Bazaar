@@ -112,7 +112,8 @@ export const orderRepository = {
       discount?: number,
       receivedFrom?: string,
       receivedFromOther?: string,
-      pickupLocation?: string | null
+      pickupLocation?: string | null,
+      paymentMode?: 'IN_CASH' | 'BANK_TRANSFER'
    ): Promise<Order> {
       return prisma.$transaction(
          async (tx) => {
@@ -223,6 +224,7 @@ export const orderRepository = {
                      pickupLocation !== undefined
                         ? pickupLocation
                         : existingOrder.pickupLocation,
+                  paymentMode: paymentMode ?? existingOrder.paymentMode,
                   total,
                   items: {
                      create: pricedItems.map((item) => ({

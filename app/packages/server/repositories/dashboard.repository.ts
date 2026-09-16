@@ -216,11 +216,25 @@ export const dashboardRepository = {
          .slice(0, 10)
          .map(([name, qty]) => ({ name, qty }));
 
+      // Sold out items
+      const soldOutMenuItems = await prisma.menuItem.findMany({
+         where: { eventId, isSoldOut: true },
+         select: { name: true, category: true, stockQty: true },
+         orderBy: { name: 'asc' },
+      });
+
+      const soldOutItems = soldOutMenuItems.map((item) => ({
+         name: item.name,
+         stockQty: item.stockQty,
+         qtySold: itemsSold[item.name] ?? 0,
+      }));
+
       return {
          revenueByDate,
          itemsSold,
          statusDistribution,
          topSellingItems,
+         soldOutItems,
       };
    },
 
