@@ -842,7 +842,10 @@ function OrderEditModal({
 
       // Check if pre-order is closed and confirm
       if (order.event?.preOrderClose) {
-         const isClosed = new Date() > new Date(order.event.preOrderClose);
+         const preOrderCloseDate = order.event.preOrderClose.endsWith('Z')
+            ? order.event.preOrderClose
+            : order.event.preOrderClose + 'Z';
+         const isClosed = new Date() > new Date(preOrderCloseDate);
          if (isClosed) {
             const confirmed = window.confirm(
                '⚠️ Pre-order for this event has closed.\n\nAre you sure you want to save changes to this order?'

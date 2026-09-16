@@ -1,3 +1,22 @@
+## [2026-09-16 12:30 PM] Bugfix: Fix timezone issue in Edit Order pre-order close comparison
+
+### Problem
+In the Edit Order popup, the pre-order close date comparison was using `new Date(order.event.preOrderClose)` without appending 'Z'. When the API returns a date string like `2026-09-18T23:00` (without timezone suffix), JavaScript interprets it as local time. For NZ timezone (+12), this causes a 1-day shift, making the pre-order appear to close one day earlier than it actually does.
+
+### Fix
+Added 'Z' suffix check before parsing the date, same pattern used in EventsPage:
+```typescript
+const preOrderCloseDate = order.event.preOrderClose.endsWith('Z')
+   ? order.event.preOrderClose
+   : order.event.preOrderClose + 'Z';
+const isClosed = new Date() > new Date(preOrderCloseDate);
+```
+
+### Files Changed
+- `app/packages/client/src/pages/dashboard/OrdersPage.tsx` — Fixed pre-order close date comparison timezone handling
+
+---
+
 ## [2026-09-16 12:20 PM] Bugfix: Fix 500 error on Edit Order save
 
 ### Problem
