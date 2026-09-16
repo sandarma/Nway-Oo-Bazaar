@@ -49,6 +49,8 @@ const updateOrderRequestSchema = z.object({
    receivedFromOther: z.string().trim().optional(),
    pickupLocation: z.string().trim().nullable().optional(),
    paymentMode: z.nativeEnum(PaymentMode).optional(),
+   customerName: z.string().trim().min(1).optional(),
+   customerPhone: z.string().trim().optional(),
 });
 
 export const orderController = {
@@ -181,6 +183,8 @@ export const orderController = {
             receivedFromOther,
             pickupLocation,
             paymentMode,
+            customerName,
+            customerPhone,
          } = parseResult.data;
 
          const updatedOrder = await orderService.updateOrderByOrderNo(
@@ -192,7 +196,9 @@ export const orderController = {
             receivedFrom,
             receivedFromOther,
             pickupLocation,
-            paymentMode as PaymentMode | undefined
+            paymentMode as PaymentMode | undefined,
+            customerName,
+            customerPhone
          );
 
          return res.json(updatedOrder);

@@ -207,10 +207,13 @@ function EventCard({
                <div className="flex flex-wrap gap-4 mt-2 text-sm text-muted-foreground">
                   <span className="flex items-center gap-1">
                      <Calendar className="w-4 h-4" />
-                     {new Date(event.eventDate + 'Z').toLocaleDateString(
-                        'en-NZ',
-                        { timeZone: 'Pacific/Auckland' }
-                     )}
+                     {new Date(
+                        event.eventDate.endsWith('Z')
+                           ? event.eventDate
+                           : event.eventDate + 'Z'
+                     ).toLocaleDateString('en-NZ', {
+                        timeZone: 'Pacific/Auckland',
+                     })}
                   </span>
                   <span className="flex items-center gap-1">
                      <MapPin className="w-4 h-4" />
@@ -220,10 +223,13 @@ function EventCard({
                      <span className="flex items-center gap-1">
                         <Clock className="w-4 h-4" />
                         Pre-order closes:{' '}
-                        {new Date(event.preOrderClose + 'Z').toLocaleDateString(
-                           'en-NZ',
-                           { timeZone: 'Pacific/Auckland' }
-                        )}
+                        {new Date(
+                           event.preOrderClose.endsWith('Z')
+                              ? event.preOrderClose
+                              : event.preOrderClose + 'Z'
+                        ).toLocaleDateString('en-NZ', {
+                           timeZone: 'Pacific/Auckland',
+                        })}
                      </span>
                   )}
                </div>

@@ -1,3 +1,10 @@
+## [2026-09-16 10:30 AM] fix: Fix invalid date display, email validation, add customer fields to edit order
+
+- Fixed "Invalid Date" on Events dashboard page by checking for existing 'Z' suffix before appending
+- Updated phone validation to accept email addresses (server + frontend + ChatBot)
+- Added Customer Name and Contact Phone/Email fields to Edit Order popup
+- Updated backend (controller → service → repository) to support customer name/phone updates
+
 ## [2026-09-16 10:15 AM] feat: Fix timezone bugs, add payment mode to edit order, auto-scroll pagination, sold out items analytics
 
 ### Issues Resolved

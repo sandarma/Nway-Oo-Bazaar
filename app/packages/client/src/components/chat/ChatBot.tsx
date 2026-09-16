@@ -537,11 +537,14 @@ const ChatBot = () => {
          return;
       }
 
-      // Validate phone number format
+      // Validate phone number or email format
+      const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(phoneRaw);
       const digits = phoneRaw.replace(/[\s\-().]/g, '');
-      if (digits.length < 7 || digits.length > 15 || !/^\+?\d+$/.test(digits)) {
+      const isPhone =
+         digits.length >= 7 && digits.length <= 15 && /^\+?\d+$/.test(digits);
+      if (!isEmail && !isPhone) {
          pushBot(
-            'That does not look like a valid phone number. Please enter a valid phone number (e.g. 021 123 456).'
+            'That does not look like a valid phone number or email. Please enter a valid phone (e.g. 021 123 456) or email (e.g. user@example.com).'
          );
          return;
       }

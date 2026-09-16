@@ -113,7 +113,9 @@ export const orderRepository = {
       receivedFrom?: string,
       receivedFromOther?: string,
       pickupLocation?: string | null,
-      paymentMode?: 'IN_CASH' | 'BANK_TRANSFER'
+      paymentMode?: 'IN_CASH' | 'BANK_TRANSFER',
+      customerName?: string,
+      customerPhone?: string
    ): Promise<Order> {
       return prisma.$transaction(
          async (tx) => {
@@ -210,6 +212,19 @@ export const orderRepository = {
             await tx.orderItem.deleteMany({
                where: { orderId: existingOrder.id },
             });
+
+            // Update customer info if provided
+            if (customerName !== undefined || customerPhone !== undefined) {
+               const customerUpdate: Record<string, string> = {};
+               if (customerName !== undefined)
+                  customerUpdate.name = customerName;
+               if (customerPhone !== undefined)
+                  customerUpdate.phone = customerPhone;
+               await tx.customer.update({
+                  where: { id: existingOrder.customerId },
+                  data: customerUpdate,
+               });
+            }
 
             return tx.order.update({
                where: { id: existingOrder.id },

@@ -122,7 +122,9 @@ export const orderService = {
       receivedFrom?: string,
       receivedFromOther?: string,
       pickupLocation?: string | null,
-      paymentMode?: 'IN_CASH' | 'BANK_TRANSFER'
+      paymentMode?: 'IN_CASH' | 'BANK_TRANSFER',
+      customerName?: string,
+      customerPhone?: string
    ): Promise<Order> {
       const existingOrder =
          await orderRepository.getOrderByOrderNo(orderNumber);
@@ -141,7 +143,9 @@ export const orderService = {
          receivedFrom,
          receivedFromOther,
          pickupLocation,
-         paymentMode
+         paymentMode,
+         customerName,
+         customerPhone
       );
    },
 
