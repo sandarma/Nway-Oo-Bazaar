@@ -21,6 +21,23 @@ interface Event {
    createdAt: string;
 }
 
+const padDatePart = (value: number) => String(value).padStart(2, '0');
+
+// A datetime-local input has no timezone. Build its value from local date parts
+// instead of using toISOString(), which converts the date to UTC first.
+const formatDateTimeLocal = (dateValue: string) => {
+   const date = new Date(dateValue);
+
+   if (Number.isNaN(date.getTime())) return '';
+
+   return `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(
+      date.getDate()
+   )}T${padDatePart(date.getHours())}:${padDatePart(date.getMinutes())}`;
+};
+
+// Convert the timezone-free browser input into an unambiguous instant for the API.
+const toUtcDateTime = (dateValue: string) => new Date(dateValue).toISOString();
+
 export default function EventsPage() {
    const { toast } = useToast();
    const [events, setEvents] = useState<Event[]>([]);
@@ -321,12 +338,10 @@ function EventModal({
       eventCodePrefix: event?.eventCodePrefix || '',
       eventType: event?.eventType || 'FOOD_FAIR',
       eventInfo: event?.eventInfo || '',
-      eventDate: event?.eventDate
-         ? new Date(event.eventDate).toISOString().slice(0, 16)
-         : '',
+      eventDate: event?.eventDate ? formatDateTimeLocal(event.eventDate) : '',
       location: event?.location || '',
       preOrderClose: event?.preOrderClose
-         ? new Date(event.preOrderClose).toISOString().slice(0, 16)
+         ? formatDateTimeLocal(event.preOrderClose)
          : '',
       hostedBy: event?.hostedBy || '',
       pickupInfo: event?.pickupInfo || '',
@@ -338,8 +353,10 @@ function EventModal({
       e.preventDefault();
       onSubmit({
          ...formData,
-         eventDate: formData.eventDate,
-         preOrderClose: formData.preOrderClose || null,
+         eventDate: toUtcDateTime(formData.eventDate),
+         preOrderClose: formData.preOrderClose
+            ? toUtcDateTime(formData.preOrderClose)
+            : null,
       });
    };
 
