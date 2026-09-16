@@ -214,12 +214,12 @@ export const orderRepository = {
             });
 
             // Update customer info if provided
-            if (customerName !== undefined || customerPhone !== undefined) {
-               const customerUpdate: Record<string, string> = {};
-               if (customerName !== undefined)
-                  customerUpdate.name = customerName;
-               if (customerPhone !== undefined)
-                  customerUpdate.phone = customerPhone;
+            const customerUpdate: Record<string, string> = {};
+            if (customerName && customerName.trim())
+               customerUpdate.name = customerName.trim();
+            if (customerPhone && customerPhone.trim())
+               customerUpdate.phone = customerPhone.trim();
+            if (Object.keys(customerUpdate).length > 0) {
                await tx.customer.update({
                   where: { id: existingOrder.customerId },
                   data: customerUpdate,
